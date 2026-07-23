@@ -27,6 +27,8 @@ interface ShopContextType {
   // Navigation & Page State
   activePage: string;
   setActivePage: (page: string) => void;
+  accountTab: string;
+  setAccountTab: (tab: string) => void;
   selectedProductId: string | null;
   openProductPage: (productId: string) => void;
 
@@ -51,11 +53,19 @@ interface ShopContextType {
   isCompareOpen: boolean;
   setIsCompareOpen: (open: boolean) => void;
 
-  // Modals & Search
+  // Search & Modals
   isSearchOpen: boolean;
   setIsSearchOpen: (open: boolean) => void;
   quickViewProduct: Product | null;
   setQuickViewProduct: (product: Product | null) => void;
+
+  // Auth
+  user: any | null;
+  setUser: (user: any) => void;
+  isAuthModalOpen: boolean;
+  setIsAuthModalOpen: (open: boolean) => void;
+  login: (userData: any) => void;
+  logout: () => void;
 
   // Notifications
   toasts: ToastMessage[];
@@ -64,12 +74,15 @@ interface ShopContextType {
   // Order History for Account page
   orders: any[];
   addOrder: (order: any) => void;
+  cancelOrder: (orderId: string) => void;
+  updateOrderStatus: (orderId: string, status: string) => void;
 }
 
 const ShopContext = createContext<ShopContextType | undefined>(undefined);
 
 export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [activePage, setActivePage] = useState<string>('home');
+  const [accountTab, setAccountTab] = useState<string>('orders');
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
   // Stateful Products List to allow deletion/adding
@@ -112,25 +125,43 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [quickViewProduct, setQuickViewProduct] = useState<Product | null>(null);
 
+  // Auth
+  const [user, setUser] = useState<any | null>(() => {
+    try {
+      const saved = localStorage.getItem('crof_user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      localStorage.setItem('crof_user', JSON.stringify(user));
+    } else {
+      localStorage.removeItem('crof_user');
+    }
+  }, [user]);
+
   // Toasts
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
 
   // Orders
-  const [orders, setOrders] = useState<any[]>([
-    {
-      id: 'ORD-8921',
-      date: '2026-07-15',
-      status: 'Delivered',
-      total: 1047,
-      items: [
-        { name: 'Kashmiri Red Chilli Powder (250g)', qty: 2, price: 698 },
-        { name: 'Lakadong Turmeric (100g)', qty: 1, price: 349 }
-      ],
-      trackingNo: 'CRF-TRK-99281'
+  const [orders, setOrders] = useState<any[]>(() => {
+    try {
+      const saved = localStorage.getItem('crof_orders');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
     }
-  ]);
+  });
 
   // Sync to local storage
+  useEffect(() => {
+    localStorage.setItem('crof_orders', JSON.stringify(orders));
+  }, [orders]);
+
   useEffect(() => {
     localStorage.setItem('crof_cart', JSON.stringify(cart));
   }, [cart]);
@@ -143,12 +174,42 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     localStorage.setItem('crof_products', JSON.stringify(products));
   }, [products]);
 
+  // Sync state across tabs
+  useEffect(() => {
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'crof_products' && e.newValue) {
+        setProducts(JSON.parse(e.newValue));
+      }
+      if (e.key === 'crof_orders' && e.newValue) {
+        setOrders(JSON.parse(e.newValue));
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, []);
+
   const addToast = (title: string, type: 'success' | 'info' | 'warning' = 'success') => {
     const id = Math.random().toString(36).substring(2, 9);
     setToasts((prev) => [...prev, { id, title, type }]);
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 3500);
+  };
+
+  const login = (userData: any) => {
+    setUser(userData);
+    setIsAuthModalOpen(false);
+    addToast(`Welcome, ${userData.name}!`, 'success');
+  };
+
+  const logout = () => {
+    setUser(null);
+    setCart([]);
+    setWishlist([]);
+    setOrders([]);
+    setCompareList([]);
+    setActivePage('home');
+    addToast('You have been logged out. All data cleared.', 'info');
   };
 
   const deleteProduct = (productId: string) => {
@@ -267,6 +328,24 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     addToast('Order placed successfully! Track status in My Account.', 'success');
   };
 
+  const cancelOrder = (orderId: string) => {
+    setOrders((prev) => 
+      prev.map(order => 
+        order.id === orderId ? { ...order, status: 'Cancelled' } : order
+      )
+    );
+    addToast('Order cancelled successfully', 'info');
+  };
+
+  const updateOrderStatus = (orderId: string, status: string) => {
+    setOrders((prev) => 
+      prev.map(order => 
+        order.id === orderId ? { ...order, status } : order
+      )
+    );
+    addToast(`Order ${orderId} updated to ${status}`, 'success');
+  };
+
   return (
     <ShopContext.Provider
       value={{
@@ -280,6 +359,8 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           setActivePage(p);
           window.scrollTo({ top: 0, behavior: 'smooth' });
         },
+        accountTab,
+        setAccountTab,
         selectedProductId,
         openProductPage,
         cart,
@@ -301,10 +382,18 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setIsSearchOpen,
         quickViewProduct,
         setQuickViewProduct,
+        user,
+        setUser,
+        isAuthModalOpen,
+        setIsAuthModalOpen,
+        login,
+        logout,
         toasts,
         addToast,
         orders,
-        addOrder
+        addOrder,
+        cancelOrder,
+        updateOrderStatus
       }}
     >
       {children}

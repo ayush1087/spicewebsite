@@ -4,21 +4,25 @@ import { ShieldCheck, Truck, Tag, CreditCard, QrCode, Banknote, ArrowRight, Chec
 import confetti from 'canvas-confetti';
 
 export const CheckoutPage: React.FC = () => {
-  const { cart, cartSubtotal, freeShippingThreshold, addOrder, setActivePage, addToast } = useShop();
+  const { cart, cartSubtotal, freeShippingThreshold, addOrder, setActivePage, addToast, user } = useShop();
 
   const [couponCode, setCouponCode] = useState('');
   const [discountAmount, setDiscountAmount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<'upi' | 'card' | 'cod'>('upi');
 
   const [shippingAddress, setShippingAddress] = useState({
-    fullName: 'Ayush Sharma',
-    email: 'ayush@example.com',
-    phone: '+91 98765 43210',
+    fullName: user?.name || '',
+    email: user?.contact?.includes('@') ? user.contact : '',
+    phone: !user?.contact?.includes('@') ? user?.contact : '',
     address: 'Suite 402, Royal Residency, Bandra West',
     city: 'Mumbai',
     state: 'Maharashtra',
     pincode: '400050'
   });
+
+  const [isPhoneVerified, setIsPhoneVerified] = useState(false);
+  const [otpSent, setOtpSent] = useState(false);
+  const [otpValue, setOtpValue] = useState('');
 
   const isFreeShipping = cartSubtotal >= freeShippingThreshold;
   const shippingFee = isFreeShipping ? 0 : 49;
@@ -31,6 +35,48 @@ export const CheckoutPage: React.FC = () => {
       addToast('Coupon PURECROF Applied! 10% Discount unlocked.', 'success');
     } else {
       addToast('Invalid Coupon Code. Try PURECROF for 10% off.', 'warning');
+    }
+  };
+
+  const handlePincodeChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setShippingAddress(prev => ({ ...prev, pincode: val }));
+
+    if (val.length === 6 && /^\d+$/.test(val)) {
+      try {
+        const response = await fetch(`https://api.postalpincode.in/pincode/${val}`);
+        const data = await response.json();
+        if (data && data[0] && data[0].Status === 'Success' && data[0].PostOffice && data[0].PostOffice.length > 0) {
+          const postOffice = data[0].PostOffice[0];
+          setShippingAddress(prev => ({
+            ...prev,
+            city: postOffice.District,
+            state: postOffice.State
+          }));
+          addToast('City and State auto-filled!', 'success');
+        }
+      } catch (error) {
+        console.error('Failed to fetch pincode details', error);
+      }
+    }
+  };
+
+  const handleSendOTP = () => {
+    if (shippingAddress.phone.length < 10) {
+      addToast('Please enter a valid phone number to verify.', 'warning');
+      return;
+    }
+    setOtpSent(true);
+    addToast('OTP sent successfully via SMS! (Use 123456 for testing)', 'success');
+  };
+
+  const handleVerifyOTP = () => {
+    if (otpValue === '123456') {
+      setIsPhoneVerified(true);
+      setOtpSent(false);
+      addToast('Phone number verified securely!', 'success');
+    } else {
+      addToast('Invalid OTP entered. Please check and try again.', 'warning');
     }
   };
 
@@ -50,7 +96,13 @@ export const CheckoutPage: React.FC = () => {
         qty: i.quantity,
         price: i.product.price * i.quantity
       })),
-      trackingNo: `CRF-TRK-${Math.floor(10000 + Math.random() * 90000)}`
+      trackingNo: `CRF-TRK-${Math.floor(10000 + Math.random() * 90000)}`,
+      customer: {
+        name: shippingAddress.fullName || user?.name || 'Guest',
+        email: user?.contact || 'Not Provided',
+        phone: shippingAddress.phone || 'Not Provided'
+      },
+      shippingAddress
     };
 
     addOrder(newOrder);
@@ -100,12 +152,46 @@ export const CheckoutPage: React.FC = () => {
                 </div>
                 <div>
                   <label className="font-semibold text-gray-700 block mb-1">Phone Number</label>
-                  <input
-                    type="text"
-                    value={shippingAddress.phone}
-                    onChange={(e) => setShippingAddress({ ...shippingAddress, phone: e.target.value })}
-                    className="w-full p-3 bg-white border border-gray-200 rounded-xl"
-                  />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={shippingAddress.phone}
+                      onChange={(e) => setShippingAddress({ ...shippingAddress, phone: e.target.value })}
+                      disabled={isPhoneVerified}
+                      className={`w-full p-3 bg-white border border-gray-200 rounded-xl ${isPhoneVerified ? 'opacity-70 bg-gray-50' : ''}`}
+                    />
+                    {!isPhoneVerified && (
+                      <button 
+                        onClick={handleSendOTP} 
+                        className="px-4 py-2 bg-[#111111] text-white rounded-xl font-bold whitespace-nowrap hover:bg-[#C9A227] hover:text-[#111111] transition-colors"
+                      >
+                        Verify
+                      </button>
+                    )}
+                    {isPhoneVerified && (
+                      <div className="px-4 flex items-center justify-center bg-emerald-50 text-emerald-600 rounded-xl border border-emerald-200" title="Phone verified">
+                        <CheckCircle2 className="w-5 h-5" />
+                      </div>
+                    )}
+                  </div>
+                  {otpSent && !isPhoneVerified && (
+                    <div className="mt-3 p-3 bg-white border border-amber-200 rounded-xl flex gap-2 items-center shadow-sm">
+                      <input 
+                        type="text" 
+                        placeholder="Enter OTP" 
+                        value={otpValue}
+                        onChange={(e) => setOtpValue(e.target.value)}
+                        className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-center tracking-widest font-bold focus:outline-none focus:border-[#C9A227]"
+                        maxLength={6}
+                      />
+                      <button 
+                        onClick={handleVerifyOTP}
+                        className="px-4 py-2 bg-[#C9A227] text-[#111111] font-bold rounded-lg whitespace-nowrap hover:bg-amber-500 transition-colors"
+                      >
+                        Confirm
+                      </button>
+                    </div>
+                  )}
                 </div>
                 <div className="sm:col-span-2">
                   <label className="font-semibold text-gray-700 block mb-1">Street Address</label>
@@ -129,11 +215,23 @@ export const CheckoutPage: React.FC = () => {
                   <label className="font-semibold text-gray-700 block mb-1">PIN Code</label>
                   <input
                     type="text"
+                    maxLength={6}
                     value={shippingAddress.pincode}
-                    onChange={(e) => setShippingAddress({ ...shippingAddress, pincode: e.target.value })}
+                    onChange={handlePincodeChange}
                     className="w-full p-3 bg-white border border-gray-200 rounded-xl"
                   />
                 </div>
+              </div>
+
+              {/* State Field (added below city and pincode) */}
+              <div className="mt-4">
+                <label className="font-semibold text-gray-700 block mb-1">State</label>
+                <input
+                  type="text"
+                  value={shippingAddress.state}
+                  onChange={(e) => setShippingAddress({ ...shippingAddress, state: e.target.value })}
+                  className="w-full p-3 bg-white border border-gray-200 rounded-xl"
+                />
               </div>
             </div>
 
@@ -257,7 +355,9 @@ export const CheckoutPage: React.FC = () => {
 
             <button
               onClick={handlePlaceOrder}
-              className="w-full py-4 bg-[#C9A227] text-[#111111] text-xs font-bold uppercase tracking-widest rounded-2xl hover:bg-amber-400 transition-colors shadow-lg flex items-center justify-center gap-2"
+              disabled={!isPhoneVerified}
+              className={`w-full py-4 text-xs font-bold uppercase tracking-widest rounded-2xl shadow-lg flex items-center justify-center gap-2 transition-colors ${!isPhoneVerified ? 'bg-gray-700 text-gray-500 cursor-not-allowed' : 'bg-[#C9A227] text-[#111111] hover:bg-amber-400'}`}
+              title={!isPhoneVerified ? 'Verify phone number to proceed' : 'Place Order'}
             >
               Confirm & Pay ₹{finalTotal} <ArrowRight className="w-4 h-4" />
             </button>

@@ -4,13 +4,35 @@ import { useShop } from '../../context/ShopContext';
 import { CrofLogo } from '../ui/CrofLogo';
 import {
   LayoutDashboard, ShoppingCart, Package, Tags, Warehouse, Users, Percent,
-  Star, BarChart3, Truck, Image, ShieldCheck, Settings, LogOut, Lock, Key,
-  Plus, Edit, Trash2, AlertTriangle, ArrowUpRight, Download, X
+  Star, BarChart3, Truck, Image as ImageIcon, ShieldCheck, Settings, LogOut, Lock, Key,
+  Plus, Edit, Trash2, AlertTriangle, ArrowUpRight, Download, X, Layers, Briefcase, CreditCard,
+  Megaphone, FileText, Activity
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
+
+const salesData = [
+  { name: 'Jan', revenue: 4000, orders: 24 },
+  { name: 'Feb', revenue: 3000, orders: 18 },
+  { name: 'Mar', revenue: 5000, orders: 35 },
+  { name: 'Apr', revenue: 2780, orders: 15 },
+  { name: 'May', revenue: 8900, orders: 60 },
+  { name: 'Jun', revenue: 12390, orders: 85 },
+  { name: 'Jul', revenue: 15490, orders: 110 },
+];
+
+const customerGrowthData = [
+  { name: 'Week 1', customers: 40 },
+  { name: 'Week 2', customers: 85 },
+  { name: 'Week 3', customers: 120 },
+  { name: 'Week 4', customers: 210 },
+];
 
 export const AdminPortal: React.FC = () => {
-  const { addToast, orders, products, deleteProduct, addProduct, updateProduct, resetCatalog } = useShop();
+  const { addToast, orders, products, deleteProduct, addProduct, updateProduct, resetCatalog, updateOrderStatus } = useShop();
+
+  const totalRevenue = orders.reduce((acc, o) => (o.status !== 'Cancelled' ? acc + o.total : acc), 0);
+  const totalOrders = orders.length;
 
   // Authentication State
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
@@ -24,15 +46,21 @@ export const AdminPortal: React.FC = () => {
     | 'orders'
     | 'products'
     | 'categories'
+    | 'collections'
     | 'inventory'
     | 'customers'
-    | 'coupons'
     | 'reviews'
-    | 'analytics'
+    | 'coupons'
+    | 'wholesale'
     | 'shipping'
-    | 'banners'
+    | 'payments'
+    | 'analytics'
+    | 'marketing'
+    | 'media'
+    | 'reports'
     | 'users'
     | 'settings'
+    | 'activity'
   >('dashboard');
 
   // Dynamic States for Admin Data Management
@@ -260,22 +288,6 @@ export const AdminPortal: React.FC = () => {
     );
   }
 
-  const navSidebarItems = [
-    { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-    { id: 'orders', label: 'Orders', icon: ShoppingCart },
-    { id: 'products', label: 'Products', icon: Package },
-    { id: 'categories', label: 'Categories', icon: Tags },
-    { id: 'inventory', label: 'Inventory', icon: Warehouse },
-    { id: 'customers', label: 'Customers', icon: Users },
-    { id: 'coupons', label: 'Coupons', icon: Percent },
-    { id: 'reviews', label: 'Reviews', icon: Star },
-    { id: 'analytics', label: 'Sales Analytics', icon: BarChart3 },
-    { id: 'shipping', label: 'Shipping Mgt', icon: Truck },
-    { id: 'banners', label: 'Homepage Banners', icon: Image },
-    { id: 'users', label: 'User Management', icon: ShieldCheck },
-    { id: 'settings', label: 'Settings', icon: Settings }
-  ];
-
   return (
     <div className="min-h-screen bg-[#F8F8F8] font-sans flex text-[#2B2B2B]">
       {/* Sidebar Navigation */}
@@ -289,7 +301,27 @@ export const AdminPortal: React.FC = () => {
           </div>
 
           <nav className="space-y-1">
-            {navSidebarItems.map((item) => {
+            {[
+              { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+              { id: 'orders', label: 'Orders', icon: ShoppingCart },
+              { id: 'products', label: 'Products', icon: Package },
+              { id: 'categories', label: 'Categories', icon: Tags },
+              { id: 'collections', label: 'Collections', icon: Layers },
+              { id: 'inventory', label: 'Inventory', icon: Warehouse },
+              { id: 'customers', label: 'Customers', icon: Users },
+              { id: 'reviews', label: 'Reviews', icon: Star },
+              { id: 'coupons', label: 'Coupons', icon: Percent },
+              { id: 'wholesale', label: 'Wholesale', icon: Briefcase },
+              { id: 'shipping', label: 'Shipping', icon: Truck },
+              { id: 'payments', label: 'Payments', icon: CreditCard },
+              { id: 'analytics', label: 'Analytics', icon: BarChart3 },
+              { id: 'marketing', label: 'Marketing', icon: Megaphone },
+              { id: 'media', label: 'Media Library', icon: ImageIcon },
+              { id: 'reports', label: 'Reports', icon: FileText },
+              { id: 'users', label: 'User Management', icon: ShieldCheck },
+              { id: 'settings', label: 'Settings', icon: Settings },
+              { id: 'activity', label: 'Activity Logs', icon: Activity },
+            ].map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (
@@ -366,25 +398,63 @@ export const AdminPortal: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 text-xs">
               <div className="p-6 bg-white rounded-2xl border border-gray-200 shadow-sm space-y-2">
                 <span className="text-gray-400">Total Revenue</span>
-                <p className="text-3xl font-bold text-gray-900">₹4,89,200</p>
+                <p className="text-3xl font-bold text-gray-900">₹{totalRevenue.toLocaleString()}</p>
                 <span className="text-emerald-600 font-semibold flex items-center gap-1">
-                  <ArrowUpRight className="w-3.5 h-3.5" /> +18.4% vs last month
+                  <ArrowUpRight className="w-3.5 h-3.5" /> Live Calculation
                 </span>
               </div>
               <div className="p-6 bg-white rounded-2xl border border-gray-200 shadow-sm space-y-2">
                 <span className="text-gray-400">Total Orders</span>
-                <p className="text-3xl font-bold text-gray-900">342</p>
-                <span className="text-emerald-600 font-semibold">98.2% Fulfillment</span>
+                <p className="text-3xl font-bold text-gray-900">{totalOrders}</p>
+                <span className="text-emerald-600 font-semibold">100% Tracked</span>
               </div>
               <div className="p-6 bg-white rounded-2xl border border-gray-200 shadow-sm space-y-2">
                 <span className="text-gray-400">Registered Customers</span>
-                <p className="text-3xl font-bold text-gray-900">1,290</p>
-                <span className="text-emerald-600 font-semibold">42% Repeat Buyers</span>
+                <p className="text-3xl font-bold text-gray-900">Admin Only</p>
+                <span className="text-emerald-600 font-semibold">Hidden Tab</span>
               </div>
               <div className="p-6 bg-white rounded-2xl border border-gray-200 shadow-sm space-y-2">
                 <span className="text-gray-400">Quality Certifications</span>
                 <p className="text-3xl font-bold text-gray-900">100% NABL Pass</p>
                 <span className="text-gray-500">Zero Contaminants</span>
+              </div>
+            </div>
+
+            {/* Interactive Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="p-6 bg-white rounded-3xl border border-gray-200 shadow-sm space-y-4">
+                <h3 className="font-bold text-gray-900 font-serif-luxury">Revenue Overview</h3>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={salesData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#C9A227" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#C9A227" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6B7280' }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6B7280' }} />
+                      <Tooltip contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                      <Area type="monotone" dataKey="revenue" stroke="#C9A227" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+              <div className="p-6 bg-white rounded-3xl border border-gray-200 shadow-sm space-y-4">
+                <h3 className="font-bold text-gray-900 font-serif-luxury">Customer Growth</h3>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={customerGrowthData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6B7280' }} />
+                      <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#6B7280' }} />
+                      <Tooltip cursor={{ fill: '#F3F4F6' }} contentStyle={{ borderRadius: '12px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                      <Bar dataKey="customers" fill="#111111" radius={[4, 4, 0, 0]} barSize={40} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
               </div>
             </div>
 
@@ -414,7 +484,7 @@ export const AdminPortal: React.FC = () => {
                           </span>
                         </td>
                         <td className="py-3 text-right">
-                          <button onClick={() => addToast(`Fulfilling ${ord.id}`, 'info')} className="text-[#C9A227] font-bold">
+                          <button onClick={() => { setActiveTab('orders'); window.scrollTo({ top: 0, behavior: 'smooth' }); }} className="text-[#C9A227] font-bold">
                             Manage →
                           </button>
                         </td>
@@ -433,17 +503,47 @@ export const AdminPortal: React.FC = () => {
             <h3 className="text-lg font-bold font-serif-luxury text-gray-900">Order Dispatch & Shipping Log</h3>
             <p className="text-gray-500">Manage order statuses, assign tracking numbers, and view customer addresses.</p>
             <div className="space-y-3">
-              {orders.map((o) => (
-                <div key={o.id} className="p-4 bg-gray-50 rounded-2xl border border-gray-200 flex justify-between items-center">
-                  <div>
-                    <h4 className="font-bold text-gray-900 text-sm">{o.id} — ₹{o.total}</h4>
-                    <p className="text-gray-500 text-[11px]">Tracking: {o.trackingNo}</p>
-                  </div>
-                  <button onClick={() => addToast('Updated order status to Dispatched', 'success')} className="px-3 py-1.5 bg-[#111111] text-white rounded-lg font-bold">
-                    Update Status
-                  </button>
+              {orders.length === 0 ? (
+                <div className="p-8 text-center text-gray-500 border border-dashed border-gray-300 rounded-2xl">
+                  No orders have been placed yet.
                 </div>
-              ))}
+              ) : (
+                orders.map((o) => (
+                  <div key={o.id} className="p-4 bg-gray-50 rounded-2xl border border-gray-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                    <div className="space-y-1">
+                      <h4 className="font-bold text-gray-900 text-sm">{o.id} — ₹{o.total}</h4>
+                      <p className="text-gray-500 text-[11px]">Tracking: {o.trackingNo} | Date: {o.date}</p>
+                      {o.customer && (
+                        <div className="pt-1 pb-1 text-gray-600 text-[11px] space-y-0.5">
+                          <p><span className="font-semibold text-gray-800">Customer:</span> {o.customer.name}</p>
+                          <p><span className="font-semibold text-gray-800">Email:</span> {o.customer.email}</p>
+                          <p><span className="font-semibold text-gray-800">Phone:</span> {o.customer.phone}</p>
+                          {o.shippingAddress && (
+                            <p><span className="font-semibold text-gray-800">Address:</span> {o.shippingAddress.address}, {o.shippingAddress.city}, {o.shippingAddress.state} - {o.shippingAddress.pincode}</p>
+                          )}
+                        </div>
+                      )}
+                      <span className="inline-block mt-1 px-2 py-0.5 bg-gray-200 text-gray-700 rounded text-[10px] font-bold">
+                        Current Status: {o.status}
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <select 
+                        className="px-3 py-1.5 border border-gray-300 rounded-lg text-xs"
+                        value={o.status}
+                        onChange={(e) => updateOrderStatus(o.id, e.target.value)}
+                      >
+                        <option value="Placed">Placed</option>
+                        <option value="Processing">Processing</option>
+                        <option value="Fresh Cold Milled">Fresh Cold Milled</option>
+                        <option value="Shipped">Shipped</option>
+                        <option value="Delivered">Delivered</option>
+                        <option value="Cancelled">Cancelled</option>
+                      </select>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
@@ -490,117 +590,7 @@ export const AdminPortal: React.FC = () => {
           </div>
         )}
 
-        {/* 4. CATEGORIES */}
-        {activeTab === 'categories' && (
-          <div className="p-6 bg-white rounded-3xl border border-gray-200 space-y-4 text-xs">
-            <h3 className="text-lg font-bold font-serif-luxury text-gray-900">Spice Categories</h3>
-            <div className="flex flex-wrap gap-3">
-              {categories.map((cat, idx) => (
-                <div key={idx} className="px-4 py-2 bg-gray-100 rounded-xl font-bold text-gray-800 flex items-center gap-2">
-                  <span>{cat}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
 
-        {/* 5. INVENTORY */}
-        {activeTab === 'inventory' && (
-          <div className="p-6 bg-white rounded-3xl border border-gray-200 space-y-4 text-xs">
-            <h3 className="text-lg font-bold font-serif-luxury text-gray-900">Inventory & Essential Oil Volatiles Log</h3>
-            <p className="text-gray-500">Track batch milling dates and vacuum foil stock.</p>
-          </div>
-        )}
-
-        {/* 6. CUSTOMERS */}
-        {activeTab === 'customers' && (
-          <div className="p-6 bg-white rounded-3xl border border-gray-200 space-y-4 text-xs">
-            <h3 className="text-lg font-bold font-serif-luxury text-gray-900">Customer Directory (1,290)</h3>
-            <p className="text-gray-500">View customer lifetime value and purchase history.</p>
-          </div>
-        )}
-
-        {/* 7. COUPONS */}
-        {activeTab === 'coupons' && (
-          <div className="p-6 bg-white rounded-3xl border border-gray-200 space-y-4 text-xs">
-            <h3 className="text-lg font-bold font-serif-luxury text-gray-900">Promotions & Coupons</h3>
-            <div className="space-y-2">
-              {coupons.map((c, i) => (
-                <div key={i} className="p-3 bg-gray-50 rounded-xl border flex justify-between items-center font-semibold">
-                  <span className="text-[#C9A227] font-bold">{c.code} ({c.discount})</span>
-                  <span>{c.usageCount} uses • Status: {c.status}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 8. REVIEWS */}
-        {activeTab === 'reviews' && (
-          <div className="p-6 bg-white rounded-3xl border border-gray-200 space-y-4 text-xs">
-            <h3 className="text-lg font-bold font-serif-luxury text-gray-900">Customer Review Moderation</h3>
-            <div className="space-y-3">
-              {reviewsList.map((r) => (
-                <div key={r.id} className="p-4 bg-gray-50 rounded-2xl border flex justify-between items-center">
-                  <div>
-                    <p className="font-bold text-gray-900">{r.author} on {r.product} (⭐ {r.rating})</p>
-                    <p className="text-gray-600 italic">"{r.text}"</p>
-                  </div>
-                  <span className="px-3 py-1 bg-emerald-100 text-emerald-700 font-bold rounded-lg">{r.status}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* 9. SALES ANALYTICS */}
-        {activeTab === 'analytics' && (
-          <div className="p-6 bg-white rounded-3xl border border-gray-200 space-y-4 text-xs">
-            <h3 className="text-lg font-bold font-serif-luxury text-gray-900">Detailed Sales Analytics</h3>
-            <p className="text-gray-500">Gross Sales: ₹4,89,200 | Average Order Value: ₹1,430</p>
-          </div>
-        )}
-
-        {/* 10. SHIPPING MANAGEMENT */}
-        {activeTab === 'shipping' && (
-          <div className="p-6 bg-white rounded-3xl border border-gray-200 space-y-4 text-xs">
-            <h3 className="text-lg font-bold font-serif-luxury text-gray-900">Shipping Rules & Carriers</h3>
-            <p className="text-gray-500">Free shipping threshold set to ₹799. Primary carrier: BlueDart Air.</p>
-          </div>
-        )}
-
-        {/* 11. HOMEPAGE BANNERS */}
-        {activeTab === 'banners' && (
-          <div className="p-6 bg-white rounded-3xl border border-gray-200 space-y-4 text-xs">
-            <h3 className="text-lg font-bold font-serif-luxury text-gray-900">Homepage Banner Management</h3>
-            <div>
-              <label className="font-bold text-gray-800 block mb-1">Top Announcement Ribbon</label>
-              <input
-                type="text"
-                value={announcementText}
-                onChange={(e) => setAnnouncementText(e.target.value)}
-                className="w-full p-3 border rounded-xl"
-              />
-            </div>
-            <div>
-              <label className="font-bold text-gray-800 block mb-1">Hero Section Headline</label>
-              <input
-                type="text"
-                value={heroTitle}
-                onChange={(e) => setHeroTitle(e.target.value)}
-                className="w-full p-3 border rounded-xl"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* 12. USER MANAGEMENT */}
-        {activeTab === 'users' && (
-          <div className="p-6 bg-white rounded-3xl border border-gray-200 space-y-4 text-xs">
-            <h3 className="text-lg font-bold font-serif-luxury text-gray-900">Admin Roles & Permissions</h3>
-            <p className="text-gray-500">Super Admin (Full Access), Inventory Manager, Support Concierge.</p>
-          </div>
-        )}
 
         {/* 13. SETTINGS */}
         {activeTab === 'settings' && (

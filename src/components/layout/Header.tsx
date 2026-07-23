@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useShop } from '../../context/ShopContext';
 import { CrofLogo } from '../ui/CrofLogo';
-import { Search, Heart, User, ShoppingBag, Menu, X, ChevronDown, Sparkles } from 'lucide-react';
+import { Search, Heart, User, ShoppingBag, Menu, X, ChevronDown, Sparkles, Package, Settings, LogOut } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export const Header: React.FC = () => {
@@ -11,8 +11,27 @@ export const Header: React.FC = () => {
     cart,
     wishlist,
     setIsCartOpen,
-    setIsSearchOpen
+    setIsSearchOpen,
+    user,
+    setIsAuthModalOpen,
+    setAccountTab,
+    logout
   } = useShop();
+
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsProfileDropdownOpen(false);
+      }
+    };
+    if (isProfileDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isProfileDropdownOpen]);
 
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -238,14 +257,69 @@ export const Header: React.FC = () => {
             )}
           </button>
 
-          {/* Account Icon */}
-          <button
-            onClick={() => setActivePage('account')}
-            className="p-2 text-gray-700 hover:text-[#C9A227] hover:bg-gray-100 rounded-full transition-colors"
-            title="My Account"
-          >
-            <User className="w-5 h-5" />
-          </button>
+          {/* Account / Login */}
+          {!user ? (
+            <div className="relative group p-[3px] rounded-full overflow-hidden flex items-center justify-center cursor-pointer shadow-[0_0_15px_rgba(201,162,39,0.4)]" onClick={() => setIsAuthModalOpen(true)}>
+              <span className="absolute inset-[-1000%] animate-[spin_2s_linear_infinite] bg-[conic-gradient(from_90deg_at_50%_50%,#111111_0%,#F5E68C_30%,#C9A227_50%,#111111_100%)]"></span>
+              <button
+                className="relative px-6 py-2.5 w-full h-full font-semibold rounded-full bg-[#111111] text-white flex items-center gap-2 text-xs uppercase tracking-wider hover:bg-gray-900 transition-colors"
+              >
+                <User className="w-3.5 h-3.5" /> Login
+              </button>
+            </div>
+          ) : (
+            <div className="relative" ref={dropdownRef}>
+              <button
+                onClick={() => setIsProfileDropdownOpen(!isProfileDropdownOpen)}
+                className="p-2 text-gray-700 hover:text-[#C9A227] hover:bg-gray-100 rounded-full transition-colors"
+                title="My Account"
+              >
+                <User className="w-5 h-5" />
+              </button>
+              
+              <AnimatePresence>
+                {isProfileDropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.8, y: -10 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.8, y: -10 }}
+                    transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                    style={{ transformOrigin: "top right" }}
+                    className="absolute top-full right-0 mt-2 w-48 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 z-50 overflow-hidden"
+                  >
+                    <div className="px-5 py-3 border-b border-gray-100 mb-1">
+                      <p className="text-sm font-extrabold text-gray-900 truncate">{user.name}</p>
+                    </div>
+                    <button
+                      onClick={() => { setAccountTab('orders'); setActivePage('account'); setIsProfileDropdownOpen(false); }}
+                      className="w-full text-left px-5 py-2.5 text-sm font-bold text-gray-700 hover:text-[#C9A227] hover:bg-gray-50 transition-colors flex items-center gap-3"
+                    >
+                      <Package className="w-4 h-4 text-gray-500 group-hover:text-[#C9A227]" /> Past Orders
+                    </button>
+                    <button
+                      onClick={() => { setAccountTab('profile'); setActivePage('account'); setIsProfileDropdownOpen(false); }}
+                      className="w-full text-left px-5 py-2.5 text-sm font-bold text-gray-700 hover:text-[#C9A227] hover:bg-gray-50 transition-colors flex items-center gap-3"
+                    >
+                      <User className="w-4 h-4 text-gray-500 group-hover:text-[#C9A227]" /> Edit Profile
+                    </button>
+                    <button
+                      onClick={() => { setAccountTab('settings'); setActivePage('account'); setIsProfileDropdownOpen(false); }}
+                      className="w-full text-left px-5 py-2.5 text-sm font-bold text-gray-700 hover:text-[#C9A227] hover:bg-gray-50 transition-colors flex items-center gap-3"
+                    >
+                      <Settings className="w-4 h-4 text-gray-500 group-hover:text-[#C9A227]" /> Settings
+                    </button>
+                    <div className="h-px bg-gray-100 my-1"></div>
+                    <button
+                      onClick={() => { logout(); setIsProfileDropdownOpen(false); setActivePage('home'); }}
+                      className="w-full text-left px-5 py-2.5 text-sm font-bold text-red-600 hover:bg-red-50 transition-colors flex items-center gap-3"
+                    >
+                      <LogOut className="w-4 h-4" /> Logout
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
 
           {/* Cart Icon */}
           <button

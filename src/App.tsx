@@ -6,6 +6,7 @@ import { CartDrawer } from './components/layout/CartDrawer';
 import { SearchModal } from './components/layout/SearchModal';
 import { CompareDrawer } from './components/layout/CompareDrawer';
 import { QuickViewModal } from './components/ui/QuickViewModal';
+import { AuthModal } from './components/ui/AuthModal';
 
 // Home Section Components
 import { HeroSection } from './components/home/HeroSection';
@@ -135,6 +136,7 @@ const MainContent: React.FC = () => {
       <SearchModal />
       <CompareDrawer />
       <QuickViewModal />
+      <AuthModal />
 
       {/* Toast Notification Container */}
       <div className="fixed bottom-6 right-6 z-50 flex flex-col gap-2 pointer-events-none">

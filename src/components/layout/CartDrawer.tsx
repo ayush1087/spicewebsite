@@ -12,7 +12,9 @@ export const CartDrawer: React.FC = () => {
     updateCartQuantity,
     cartSubtotal,
     freeShippingThreshold,
-    setActivePage
+    setActivePage,
+    user,
+    setIsAuthModalOpen
   } = useShop();
 
   const freeShippingProgress = Math.min(100, (cartSubtotal / freeShippingThreshold) * 100);
@@ -183,7 +185,11 @@ export const CartDrawer: React.FC = () => {
                 <button
                   onClick={() => {
                     setIsCartOpen(false);
-                    setActivePage('checkout');
+                    if (!user) {
+                      setIsAuthModalOpen(true);
+                    } else {
+                      setActivePage('checkout');
+                    }
                   }}
                   className="w-full py-3.5 bg-[#111111] text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-[#C9A227] transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-xl"
                 >
