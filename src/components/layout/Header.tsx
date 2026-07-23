@@ -69,10 +69,13 @@ export const Header: React.FC = () => {
       }`}
     >
       {/* Top Banner Announcement */}
-      <div className="bg-[#111111] text-white text-[11px] py-1.5 px-4 text-center font-medium tracking-wide flex items-center justify-center gap-2">
+      <button 
+        onClick={() => setActivePage('shop')}
+        className="w-full bg-[#111111] hover:bg-black text-white text-[11px] py-2 px-4 text-center font-medium tracking-wide flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-[0.99] cursor-pointer"
+      >
         <Sparkles className="w-3.5 h-3.5 text-[#C9A227] animate-pulse" />
         <span>Complimentary Express Shipping on all orders above ₹799 | Code: <strong className="text-[#C9A227]">PURECROF</strong></span>
-      </div>
+      </button>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between mt-1">
         {/* Logo */}
@@ -96,23 +99,22 @@ export const Header: React.FC = () => {
                   setActivePage(item.id);
                   setIsMegaMenuOpen(false);
                 }}
-                className={`text-xs uppercase font-semibold tracking-wider transition-colors flex items-center gap-1 py-1 ${
+                className={`group relative text-xs uppercase font-semibold tracking-wider transition-colors flex items-center gap-1 py-1 ${
                   activePage === item.id
                     ? 'text-[#C9A227]'
                     : 'text-gray-800 hover:text-[#C9A227]'
                 }`}
               >
                 {item.label}
-                {item.hasMegaMenu && <ChevronDown className="w-3 h-3 text-gray-400" />}
-              </button>
-
-              {/* Active Indicator line */}
-              {activePage === item.id && (
-                <motion.div
-                  layoutId="navIndicator"
-                  className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#C9A227] rounded-full"
+                {item.hasMegaMenu && <ChevronDown className="w-3 h-3 text-gray-400 group-hover:text-[#C9A227] transition-colors" />}
+                
+                {/* Active/Hover Indicator line */}
+                <span 
+                  className={`absolute -bottom-1 left-0 w-full h-[2px] bg-[#C9A227] transform origin-left transition-transform duration-300 ${
+                    activePage === item.id ? 'scale-x-100' : 'scale-x-0 group-hover:scale-x-100'
+                  }`} 
                 />
-              )}
+              </button>
 
               {/* Mega Menu Dropdown */}
               {item.hasMegaMenu && isMegaMenuOpen && (

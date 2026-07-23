@@ -9,7 +9,10 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
-  const { addToCart, setQuickViewProduct, wishlist, toggleWishlist, compareList, toggleCompare, openProductPage } = useShop();
+  const { cart, addToCart, updateCartQuantity, setQuickViewProduct, wishlist, toggleWishlist, compareList, toggleCompare, openProductPage } = useShop();
+
+  const cartItem = cart.find(item => item.product.id === product.id && item.selectedWeight === product.weightOptions[0]);
+  const quantity = cartItem ? cartItem.quantity : 0;
 
   const isWishlisted = wishlist.includes(product.id);
   const isCompared = compareList.includes(product.id);
@@ -138,12 +141,35 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             <span className="text-[10px] font-semibold text-gray-400 block">{product.weightOptions[0]} Pack</span>
           </div>
 
-          <button
-            onClick={() => addToCart(product)}
-            className="px-4 py-2.5 bg-[#111111] text-white text-xs font-bold rounded-xl hover:bg-[#C9A227] transition-colors flex items-center gap-1.5 shadow-sm group-hover:shadow-md"
-          >
-            <ShoppingBag className="w-3.5 h-3.5" /> Add
-          </button>
+          {quantity === 0 ? (
+            <button
+              onClick={() => addToCart(product)}
+              className="px-4 py-2.5 bg-[#111111] text-white text-xs font-bold rounded-xl hover:bg-[#C9A227] transition-all flex items-center gap-1.5 shadow-sm hover:shadow-md hover:scale-105 active:scale-95"
+            >
+              <ShoppingBag className="w-3.5 h-3.5" /> Add
+            </button>
+          ) : (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.25 }}
+              className="flex items-center gap-3 bg-[#111111] px-2 py-1.5 rounded-xl border border-[#111111] shadow-sm"
+            >
+              <button 
+                onClick={() => updateCartQuantity(product.id, product.weightOptions[0], -1)}
+                className="w-7 h-7 flex items-center justify-center bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors font-bold"
+              >
+                -
+              </button>
+              <span className="text-xs font-bold text-white w-4 text-center">{quantity}</span>
+              <button 
+                onClick={() => updateCartQuantity(product.id, product.weightOptions[0], 1)}
+                className="w-7 h-7 flex items-center justify-center bg-[#C9A227] text-[#111111] rounded-lg hover:bg-amber-400 transition-colors font-bold"
+              >
+                +
+              </button>
+            </motion.div>
+          )}
         </div>
       </div>
     </motion.div>

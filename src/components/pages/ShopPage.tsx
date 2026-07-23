@@ -8,7 +8,7 @@ import { motion } from 'framer-motion';
 export const ShopPage: React.FC = () => {
   const { openProductPage, products } = useShop();
 
-  const [selectedCategory, setSelectedCategory] = useState<string>('All Spices');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All Products');
   const [maxPrice, setMaxPrice] = useState<number>(2000);
   const [selectedWeight, setSelectedWeight] = useState<string>('All');
   const [sortBy, setSortBy] = useState<string>('featured');
@@ -19,7 +19,7 @@ export const ShopPage: React.FC = () => {
 
   // Filtering logic
   let filtered = products.filter((p) => {
-    const matchCat = selectedCategory === 'All Spices' || p.category === selectedCategory;
+    const matchCat = selectedCategory === 'All Products' || p.category === selectedCategory;
     const matchPrice = p.price <= maxPrice;
     const matchWeight = selectedWeight === 'All' || p.weightOptions.includes(selectedWeight);
     const matchSearch =

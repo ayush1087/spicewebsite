@@ -294,10 +294,9 @@ export const PRODUCTS: Product[] = [
 ];
 
 export const CATEGORIES = [
-  'All Spices',
-  'Essential Spices',
-  'Chilli & Pepper',
-  'Artisanal Blends',
+  'All Products',
+  'Spice Powders',
   'Whole Spices',
-  'Exotic Reserve'
+  'Masalas',
+  'Combo Packs'
 ];
