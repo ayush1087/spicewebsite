@@ -10,7 +10,8 @@ export const AccountPage: React.FC = () => {
   const [trackingOrderId, setTrackingOrderId] = useState<string | null>(null);
   const [editName, setEditName] = useState(user?.name || '');
 
-  const trackedOrder = trackingOrderId ? orders.find(o => o.id === trackingOrderId) : orders[0];
+  const userOrders = user ? orders.filter(o => o.customer.name === user.name || o.customer.email === user.contact) : [];
+  const trackedOrder = trackingOrderId ? userOrders.find(o => o.id === trackingOrderId) : userOrders[0];
 
   if (!user) {
     return (
@@ -50,7 +51,7 @@ export const AccountPage: React.FC = () => {
               onClick={() => setAccountTab('orders')}
               className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors font-semibold"
             >
-              {orders.length} Past Orders
+              {userOrders.length} Past Orders
             </button>
             <button
               onClick={() => setAccountTab('wishlist')}
@@ -94,7 +95,14 @@ export const AccountPage: React.FC = () => {
           {accountTab === 'orders' && (
             <div className="space-y-4">
               <h2 className="text-xl font-bold text-gray-900 font-serif-luxury">Past Spice Deliveries</h2>
-              {orders.map((order) => (
+              {userOrders.length === 0 ? (
+                <div className="py-12 text-center text-gray-400 bg-gray-50 rounded-2xl border border-gray-200">
+                  <Package className="w-12 h-12 mx-auto mb-4 opacity-20" />
+                  <p className="font-bold text-gray-900 mb-1">No orders yet</p>
+                  <p className="text-xs">You haven't placed any orders with this account.</p>
+                </div>
+              ) : (
+                userOrders.map((order) => (
                 <div key={order.id} className="p-6 bg-gray-50 rounded-2xl border border-gray-200 space-y-4">
                   <div className="flex flex-col sm:flex-row justify-between border-b border-gray-200 pb-3 text-xs gap-2">
                     <div>
@@ -131,7 +139,7 @@ export const AccountPage: React.FC = () => {
                     </button>
                   </div>
                 </div>
-              ))}
+              )))}
             </div>
           )}
 

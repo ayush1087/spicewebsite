@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import type { Product } from '../../data/products';
 import { useShop } from '../../context/ShopContext';
 import { CrofLogo } from '../ui/CrofLogo';
 import {
   LayoutDashboard, ShoppingCart, Package, Tags, Warehouse, Users, Percent,
   Star, BarChart3, Truck, Image as ImageIcon, ShieldCheck, Settings, LogOut, Lock, Key,
-  Plus, Edit, Trash2, AlertTriangle, ArrowUpRight, Download, X, Layers, Briefcase, CreditCard,
+  Plus, Edit, Trash2, AlertTriangle, ArrowUpRight, ArrowRight, ArrowLeft, Download, X, Layers, Briefcase, CreditCard,
   Megaphone, FileText, Activity
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -29,7 +29,7 @@ const customerGrowthData = [
 ];
 
 export const AdminPortal: React.FC = () => {
-  const { addToast, orders, products, deleteProduct, addProduct, updateProduct, resetCatalog, updateOrderStatus } = useShop();
+  const { addToast, orders, products, deleteProduct, addProduct, updateProduct, resetCatalog, updateOrderStatus, coupons, addCoupon, deleteCoupon, toggleCouponStatus, reviews } = useShop();
 
   const totalRevenue = orders.reduce((acc, o) => (o.status !== 'Cancelled' ? acc + o.total : acc), 0);
   const totalOrders = orders.length;
@@ -65,22 +65,17 @@ export const AdminPortal: React.FC = () => {
 
   // Dynamic States for Admin Data Management
   const [categories, setCategories] = useState<string[]>([
-    'Essential Spices',
-    'Chilli & Pepper',
-    'Artisanal Blends',
+    'All Products',
+    'Spice Powders',
     'Whole Spices',
-    'Exotic Reserve'
+    'Masalas',
+    'Combo Packs'
   ]);
-  const [coupons, setCoupons] = useState([
-    { code: 'PURECROF', discount: '10%', status: 'Active', usageCount: 142 },
-    { code: 'GOLDEN20', discount: '20%', status: 'Active', usageCount: 89 },
-    { code: 'FARMDIRECT', discount: '₹150 OFF', status: 'Expired', usageCount: 45 }
-  ]);
-  const [reviewsList, setReviewsList] = useState([
-    { id: 1, author: 'Chef Ranveer', product: 'Lakadong Turmeric', rating: 5, text: 'Vibrant golden hue and unmatched aroma!', status: 'Approved' },
-    { id: 2, author: 'Kavita S.', product: 'Kashmiri Red Chilli', rating: 5, text: 'Deep natural crimson without high heat.', status: 'Approved' },
-    { id: 3, author: 'Rahul M.', product: 'Royal Garam Masala', rating: 4, text: 'Very aromatic whole spices.', status: 'Pending' }
-  ]);
+
+
+
+  const [selectedReviewProduct, setSelectedReviewProduct] = useState<any | null>(null);
+  const [reviewSortBy, setReviewSortBy] = useState<'helpful' | 'latest' | 'positive' | 'negative'>('helpful');
   const [announcementText, setAnnouncementText] = useState(
     'Complimentary Express Shipping on all orders above ₹799 | Code: PURECROF'
   );
@@ -93,16 +88,36 @@ export const AdminPortal: React.FC = () => {
   // Form Fields
   const [name, setName] = useState('');
   const [hindiName, setHindiName] = useState('');
-  const [category, setCategory] = useState('Essential Spices');
+  const [category, setCategory] = useState('All Products');
   const [price, setPrice] = useState<number>(299);
   const [originalPrice, setOriginalPrice] = useState<number>(350);
   const [tagline, setTagline] = useState('');
   const [description, setDescription] = useState('');
-  const [image, setImage] = useState('/images/lakadong-turmeric.png');
+  const [image, setImage] = useState('');
   const [sku, setSku] = useState('');
   const [origin, setOrigin] = useState('');
   const [pungency, setPungency] = useState<'Mild' | 'Medium' | 'Hot' | 'Extra Hot'>('Mild');
   const [inStock, setInStock] = useState(true);
+  const [customImageLabels, setCustomImageLabels] = useState<Record<string, string>>({});
+
+  const handleLabelChange = (url: string, newLabel: string) => {
+    setCustomImageLabels(prev => ({ ...prev, [url]: newLabel }));
+  };
+
+  const [newCouponCode, setNewCouponCode] = useState('');
+  const [newCouponDiscount, setNewCouponDiscount] = useState('');
+  const [newCouponThreshold, setNewCouponThreshold] = useState('');
+
+  useEffect(() => {
+    if (isModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isModalOpen]);
 
   // Preloaded Spice Images List
   const preloadedImages = [
@@ -115,16 +130,22 @@ export const AdminPortal: React.FC = () => {
     { label: 'Black Pepper', path: '/images/black-pepper.png' }
   ];
 
+  const customImages = Array.from(new Set(
+    products
+      .map(p => p.image)
+      .filter(img => !preloadedImages.some(pre => pre.path === img))
+  ));
+
   const openAddModal = () => {
     setSelectedProduct(null);
     setName('');
     setHindiName('');
-    setCategory('Essential Spices');
+    setCategory('All Products');
     setPrice(299);
     setOriginalPrice(350);
     setTagline('Pure handpicked aroma.');
     setDescription('Farmed organically and cold milled under 30°C to preserve top notes.');
-    setImage('/images/lakadong-turmeric.png');
+    setImage('');
     setSku('CROF-NEW-100');
     setOrigin('Pristine Farms, India');
     setPungency('Mild');
@@ -590,7 +611,232 @@ export const AdminPortal: React.FC = () => {
           </div>
         )}
 
+        {/* REVIEWS TAB */}
+        {activeTab === 'reviews' && (
+          <div className="p-6 bg-white rounded-3xl border border-gray-200 space-y-6 text-xs">
+            {!selectedReviewProduct ? (
+              // 1. PRODUCT LIST VIEW
+              <>
+                <h3 className="text-lg font-bold font-serif-luxury text-gray-900">Select a Product to View Reviews</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {products.map((p) => {
+                    const productReviews = reviews.filter(r => r.product === p.name);
+                    const avgRating = productReviews.length 
+                      ? (productReviews.reduce((sum, r) => sum + r.rating, 0) / productReviews.length).toFixed(1)
+                      : '0.0';
+                      
+                    return (
+                      <div 
+                        key={p.id} 
+                        onClick={() => setSelectedReviewProduct(p)}
+                        className="p-4 rounded-2xl border border-gray-200 flex items-center justify-between hover:border-[#C9A227] transition-all bg-white cursor-pointer group"
+                      >
+                        <div className="flex items-center gap-4">
+                          <img src={p.image} alt="" className="w-12 h-12 object-cover rounded-xl border group-hover:scale-105 transition-transform" />
+                          <div>
+                            <h4 className="font-bold text-gray-900 text-sm group-hover:text-[#C9A227] transition-colors">{p.name}</h4>
+                            <div className="flex items-center gap-2 mt-1">
+                              <div className="flex text-green-700">
+                                {[...Array(5)].map((_, i) => (
+                                  <svg key={i} className={`w-3.5 h-3.5 ${i < Math.round(Number(avgRating)) ? 'fill-current' : 'text-gray-200'}`} viewBox="0 0 20 20">
+                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                                  </svg>
+                                ))}
+                              </div>
+                              <span className="text-gray-500">{productReviews.length} Reviews</span>
+                            </div>
+                          </div>
+                        </div>
+                        <ArrowRight className="w-5 h-5 text-gray-300 group-hover:text-[#C9A227] transition-colors" />
+                      </div>
+                    );
+                  })}
+                </div>
+              </>
+            ) : (
+              // 2. DETAILED REVIEW VIEW
+              <div className="space-y-8">
+                {/* Header */}
+                <div className="flex items-center gap-4 border-b border-gray-100 pb-4">
+                  <button 
+                    onClick={() => setSelectedReviewProduct(null)}
+                    className="p-2 hover:bg-gray-100 rounded-lg text-gray-500 hover:text-gray-900 transition-colors"
+                  >
+                    <ArrowLeft className="w-5 h-5" />
+                  </button>
+                  <img src={selectedReviewProduct.image} alt="" className="w-10 h-10 object-cover rounded-lg border" />
+                  <h3 className="text-xl font-bold font-serif-luxury text-gray-900">{selectedReviewProduct.name} Reviews</h3>
+                </div>
 
+                {/* Rating Summary (Amazon Style) */}
+                {(() => {
+                  const pReviews = reviews.filter(r => r.product === selectedReviewProduct.name);
+                  const avg = pReviews.length ? (pReviews.reduce((sum, r) => sum + r.rating, 0) / pReviews.length).toFixed(1) : '0.0';
+                  
+                  return (
+                    <div className="flex flex-col md:flex-row gap-8 items-start">
+                      {/* Left: Overall Avg */}
+                      <div className="flex flex-col items-center justify-center min-w-[120px]">
+                        <div className="flex text-green-700 mb-1">
+                          {[...Array(5)].map((_, i) => (
+                            <svg key={i} className={`w-5 h-5 ${i < Math.round(Number(avg)) ? 'fill-current' : 'text-gray-200'}`} viewBox="0 0 20 20">
+                              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                            </svg>
+                          ))}
+                        </div>
+                        <span className="text-gray-500 font-medium">{pReviews.length} ratings and reviews</span>
+                      </div>
+                      
+                      {/* Right: Star Bars */}
+                      <div className="flex-1 w-full space-y-2 md:border-l border-gray-200 md:pl-8">
+                        {[5, 4, 3, 2, 1].map(star => {
+                          const count = pReviews.filter(r => r.rating === star).length;
+                          const pct = pReviews.length ? Math.round((count / pReviews.length) * 100) : 0;
+                          return (
+                            <div key={star} className="flex items-center gap-3 text-xs">
+                              <span className="font-bold min-w-[20px] text-right">{star} ★</span>
+                              <div className="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-green-700 rounded-full transition-all duration-500" style={{ width: `${pct}%` }} />
+                              </div>
+                              <span className="text-gray-400 min-w-[30px]">{count}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                <hr className="border-gray-100" />
+
+                {/* Sort Filters & Reviews List */}
+                <div className="space-y-4">
+                  <h4 className="text-base font-bold text-gray-900">User reviews sorted by</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {['helpful', 'latest', 'positive', 'negative'].map((sortType) => (
+                      <button 
+                        key={sortType}
+                        onClick={() => setReviewSortBy(sortType as any)}
+                        className={`px-4 py-1.5 rounded-full border transition-all text-xs capitalize ${
+                          reviewSortBy === sortType 
+                            ? 'bg-blue-50 border-blue-200 text-blue-700 font-medium' 
+                            : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        {sortType === 'helpful' ? 'Most Helpful' : sortType}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="space-y-4 mt-6">
+                    {(() => {
+                      let pReviews = [...reviews.filter(r => r.product === selectedReviewProduct.name)];
+                      
+                      // Sort Logic
+                      if (reviewSortBy === 'helpful') pReviews.sort((a, b) => (b.helpful || 0) - (a.helpful || 0));
+                      if (reviewSortBy === 'positive') pReviews.sort((a, b) => b.rating - a.rating);
+                      if (reviewSortBy === 'negative') pReviews.sort((a, b) => a.rating - b.rating);
+                      if (reviewSortBy === 'latest') pReviews.sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime());
+
+                      if (pReviews.length === 0) return <p className="text-gray-400 italic">No reviews yet for this product.</p>;
+
+                      return pReviews.map((r) => (
+                        <div key={r.id} className="p-4 rounded-2xl border border-gray-100 bg-gray-50 space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full bg-gray-200 flex items-center justify-center font-bold text-gray-500 uppercase text-[10px]">
+                                {r.author.charAt(0)}
+                              </div>
+                              <span className="font-bold text-gray-900">{r.author}</span>
+                              <span className="text-gray-400 text-[10px]">• {r.date}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex text-green-700">
+                            {[...Array(5)].map((_, i) => (
+                              <svg key={i} className={`w-3 h-3 ${i < r.rating ? 'fill-current' : 'text-gray-200'}`} viewBox="0 0 20 20">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                              </svg>
+                            ))}
+                          </div>
+                          
+                          <p className="text-gray-700 text-sm">{r.text}</p>
+                          <div className="text-[10px] text-gray-500 flex items-center gap-1 pt-1">
+                            <span className="font-medium text-gray-700">{r.helpful || 0}</span> people found this helpful
+                          </div>
+                        </div>
+                      ));
+                    })()}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 4. COUPONS */}
+        {activeTab === 'coupons' && (
+          <div className="p-6 bg-white rounded-3xl border border-gray-200 space-y-6 text-xs">
+            <h3 className="text-lg font-bold font-serif-luxury text-gray-900">Manage Coupons</h3>
+            
+            <div className="bg-gray-50 p-4 rounded-2xl border border-gray-200">
+              <h4 className="font-bold mb-3">Add New Coupon</h4>
+              <div className="flex flex-col sm:flex-row items-end gap-3">
+                <div className="flex-1 w-full">
+                  <label className="block text-gray-500 mb-1">Coupon Code</label>
+                  <input type="text" value={newCouponCode} onChange={(e) => setNewCouponCode(e.target.value.toUpperCase())} placeholder="e.g. SUMMER20" className="w-full px-3 py-2 bg-white border border-gray-300 rounded-xl uppercase" />
+                </div>
+                <div className="flex-1 w-full">
+                  <label className="block text-gray-500 mb-1">Discount (e.g. 10%)</label>
+                  <input type="text" value={newCouponDiscount} onChange={(e) => setNewCouponDiscount(e.target.value)} placeholder="10%" className="w-full px-3 py-2 bg-white border border-gray-300 rounded-xl" />
+                </div>
+                <div className="flex-1 w-full">
+                  <label className="block text-gray-500 mb-1">Min Order Value (₹)</label>
+                  <input type="number" value={newCouponThreshold} onChange={(e) => setNewCouponThreshold(e.target.value)} placeholder="0" className="w-full px-3 py-2 bg-white border border-gray-300 rounded-xl" />
+                </div>
+                <button 
+                  onClick={() => {
+                    if(!newCouponCode || !newCouponDiscount) return addToast('Code and Discount are required', 'warning');
+                    addCoupon({ id: Date.now().toString(), code: newCouponCode, discount: newCouponDiscount, status: 'Active', minOrderValue: Number(newCouponThreshold) || 0 });
+                    setNewCouponCode('');
+                    setNewCouponDiscount('');
+                    setNewCouponThreshold('');
+                    addToast('Coupon created successfully', 'success');
+                  }}
+                  className="px-6 py-2 bg-[#111111] hover:bg-[#C9A227] hover:text-[#111111] text-white font-bold rounded-xl transition-colors h-[38px] w-full sm:w-auto"
+                >
+                  Create
+                </button>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              {coupons.map((c) => (
+                <div key={c.id} className="p-4 rounded-2xl border border-gray-200 flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white">
+                  <div>
+                    <h4 className="font-bold text-gray-900 text-sm flex items-center gap-2">
+                      {c.code}
+                      <span className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${c.status === 'Active' ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-600'}`}>{c.status}</span>
+                    </h4>
+                    <p className="text-gray-500 mt-1">{c.discount} off {c.minOrderValue ? `on orders above ₹${c.minOrderValue}` : 'on all orders'}</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => toggleCouponStatus(c.id)}
+                      className={`px-4 py-1.5 rounded-lg font-bold border transition-colors ${c.status === 'Active' ? 'border-gray-200 text-gray-600 hover:bg-gray-100' : 'border-emerald-200 text-emerald-700 bg-emerald-50 hover:bg-emerald-100'}`}
+                    >
+                      {c.status === 'Active' ? 'Deactivate' : 'Activate'}
+                    </button>
+                    <button onClick={() => deleteCoupon(c.id)} className="p-1.5 text-gray-400 hover:text-red-500 transition-colors" title="Delete Coupon">
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {coupons.length === 0 && <p className="text-gray-400 italic py-4">No coupons available.</p>}
+            </div>
+          </div>
+        )}
 
         {/* 13. SETTINGS */}
         {activeTab === 'settings' && (
@@ -620,8 +866,9 @@ export const AdminPortal: React.FC = () => {
                 initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                className="relative bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-gray-200 max-h-[90vh] overflow-y-auto p-6 sm:p-8 space-y-6 z-10 text-xs text-gray-700"
+                className="relative bg-white w-full max-w-2xl rounded-3xl shadow-2xl border border-gray-200 max-h-[90vh] overflow-hidden flex flex-col z-10 text-xs text-gray-700"
               >
+                <div className="overflow-y-auto overscroll-contain p-6 sm:p-8 space-y-6 h-full w-full">
                 <div className="flex items-center justify-between border-b pb-4">
                   <div>
                     <span className="text-[10px] uppercase font-bold text-[#C9A227] tracking-widest">Product Catalog Editor</span>
@@ -695,8 +942,8 @@ export const AdminPortal: React.FC = () => {
                         type="number"
                         required
                         min="1"
-                        value={price}
-                        onChange={(e) => setPrice(Number(e.target.value))}
+                        value={price || ''}
+                        onChange={(e) => setPrice(parseInt(e.target.value) || 0)}
                         className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#C9A227]"
                       />
                     </div>
@@ -707,8 +954,8 @@ export const AdminPortal: React.FC = () => {
                         type="number"
                         required
                         min="1"
-                        value={originalPrice}
-                        onChange={(e) => setOriginalPrice(Number(e.target.value))}
+                        value={originalPrice || ''}
+                        onChange={(e) => setOriginalPrice(parseInt(e.target.value) || 0)}
                         className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#C9A227]"
                       />
                     </div>
@@ -767,20 +1014,80 @@ export const AdminPortal: React.FC = () => {
                           }`}
                         >
                           <img src={imgItem.path} alt="" className="w-10 h-10 object-cover rounded-lg border" />
-                          <span className="text-[9px] font-semibold text-gray-500 truncate w-full text-center">{imgItem.label}</span>
+                          <input 
+                            type="text"
+                            value={customImageLabels[imgItem.path] ?? imgItem.label}
+                            onChange={(e) => handleLabelChange(imgItem.path, e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            className={`text-[9px] font-semibold bg-transparent text-center w-full focus:outline-none focus:border-b truncate ${image === imgItem.path ? 'text-[#C9A227] focus:border-[#C9A227]' : 'text-gray-500 focus:border-gray-300'}`}
+                          />
                         </button>
                       ))}
+                      {customImages.map((imgUrl, idx) => (
+                        <button
+                          key={`custom-${idx}`}
+                          type="button"
+                          onClick={() => setImage(imgUrl)}
+                          className={`p-1.5 border rounded-xl flex flex-col items-center gap-1 hover:border-[#C9A227] transition-all bg-gray-50 ${
+                            image === imgUrl ? 'border-[#C9A227] ring-1 ring-[#C9A227]/40' : 'border-gray-200'
+                          }`}
+                        >
+                          <img src={imgUrl} alt="Custom" className="w-10 h-10 object-cover rounded-lg border" />
+                          <input 
+                            type="text"
+                            value={customImageLabels[imgUrl] ?? 'Custom'}
+                            onChange={(e) => handleLabelChange(imgUrl, e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            className={`text-[9px] font-semibold bg-transparent text-center w-full focus:outline-none focus:border-b truncate ${image === imgUrl ? 'text-[#C9A227] focus:border-[#C9A227]' : 'text-gray-500 focus:border-gray-300'}`}
+                          />
+                        </button>
+                      ))}
+                      {image && !preloadedImages.some(img => img.path === image) && !customImages.includes(image) && (
+                        <button
+                          type="button"
+                          onClick={() => {}}
+                          className="p-1.5 border rounded-xl flex flex-col items-center gap-1 hover:border-[#C9A227] transition-all bg-gray-50 border-[#C9A227] ring-1 ring-[#C9A227]/40"
+                        >
+                          <img src={image} alt="Custom Upload" className="w-10 h-10 object-cover rounded-lg border" />
+                          <input 
+                            type="text"
+                            value={customImageLabels[image] ?? 'New Upload'}
+                            onChange={(e) => handleLabelChange(image, e.target.value)}
+                            onClick={(e) => e.stopPropagation()}
+                            className="text-[9px] font-semibold text-[#C9A227] bg-transparent text-center w-full focus:outline-none focus:border-b focus:border-[#C9A227] truncate"
+                          />
+                        </button>
+                      )}
                     </div>
                     <div>
-                      <p className="text-[10px] text-gray-400 mb-1">Or paste a custom image URL below:</p>
-                      <input
-                        type="text"
-                        required
-                        value={image}
-                        onChange={(e) => setImage(e.target.value)}
-                        placeholder="Image URL"
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#C9A227]"
-                      />
+                      <p className="text-[10px] text-gray-400 mb-1">Upload an image from your device or paste URL:</p>
+                      <div className="flex gap-2">
+                        <label className="cursor-pointer flex-shrink-0 px-4 py-2 bg-[#111111] text-white text-xs font-bold rounded-xl hover:bg-black transition-colors flex items-center justify-center">
+                          Upload File
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setImage(reader.result as string);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                            }} 
+                          />
+                        </label>
+                        <input
+                          type="text"
+                          value={image.startsWith('data:image') ? '' : image}
+                          onChange={(e) => setImage(e.target.value)}
+                          placeholder={image.startsWith('data:image') ? "Custom image uploaded from device" : "Or paste Image URL"}
+                          className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#C9A227] text-xs"
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -824,6 +1131,7 @@ export const AdminPortal: React.FC = () => {
                     </button>
                   </div>
                 </form>
+                </div>
               </motion.div>
             </div>
           )}

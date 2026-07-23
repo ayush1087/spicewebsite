@@ -4,9 +4,10 @@ import { ShieldCheck, Truck, Tag, CreditCard, QrCode, Banknote, ArrowRight, Chec
 import confetti from 'canvas-confetti';
 
 export const CheckoutPage: React.FC = () => {
-  const { cart, cartSubtotal, freeShippingThreshold, addOrder, setActivePage, addToast, user } = useShop();
+  const { cart, cartSubtotal, freeShippingThreshold, addOrder, setActivePage, addToast, user, coupons } = useShop();
 
   const [couponCode, setCouponCode] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState<any>(null);
   const [discountAmount, setDiscountAmount] = useState(0);
   const [paymentMethod, setPaymentMethod] = useState<'upi' | 'card' | 'cod'>('upi');
 
@@ -29,12 +30,31 @@ export const CheckoutPage: React.FC = () => {
   const finalTotal = Math.max(0, cartSubtotal + shippingFee - discountAmount);
 
   const applyCoupon = () => {
-    if (couponCode.trim().toUpperCase() === 'PURECROF') {
-      const disc = Math.round(cartSubtotal * 0.1);
+    const code = couponCode.trim().toUpperCase();
+    const activeCoupon = coupons?.find(c => c.status === 'Active' && c.code === code);
+    
+    if (activeCoupon) {
+      if (activeCoupon.minOrderValue && cartSubtotal < activeCoupon.minOrderValue) {
+        addToast(`This coupon requires a minimum order of ₹${activeCoupon.minOrderValue}`, 'warning');
+        return;
+      }
+      
+      let disc = 0;
+      if (activeCoupon.discount.includes('%')) {
+        const percent = parseFloat(activeCoupon.discount);
+        disc = Math.round(cartSubtotal * (percent / 100));
+      } else {
+        const amount = parseFloat(activeCoupon.discount.replace(/[^0-9.]/g, ''));
+        disc = amount || 0;
+      }
+      
       setDiscountAmount(disc);
-      addToast('Coupon PURECROF Applied! 10% Discount unlocked.', 'success');
+      setAppliedCoupon(activeCoupon);
+      addToast(`Coupon ${code} Applied! ${activeCoupon.discount} Discount unlocked.`, 'success');
     } else {
-      addToast('Invalid Coupon Code. Try PURECROF for 10% off.', 'warning');
+      addToast(`Invalid or inactive Coupon Code.`, 'warning');
+      setAppliedCoupon(null);
+      setDiscountAmount(0);
     }
   };
 
@@ -319,7 +339,7 @@ export const CheckoutPage: React.FC = () => {
                   type="text"
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value)}
-                  placeholder="Try PURECROF"
+                  placeholder={coupons?.find(c => c.status === 'Active')?.code ? `Try ${coupons.find(c => c.status === 'Active')?.code}` : "Enter Coupon"}
                   className="flex-1 px-3 py-2 bg-white/10 border border-white/20 rounded-xl text-xs uppercase tracking-wider text-white focus:outline-none"
                 />
                 <button
@@ -343,7 +363,7 @@ export const CheckoutPage: React.FC = () => {
               </div>
               {discountAmount > 0 && (
                 <div className="flex justify-between text-emerald-400 font-semibold">
-                  <span>Coupon Discount (10%)</span>
+                  <span>Coupon Discount {appliedCoupon ? `(${appliedCoupon.discount})` : ''}</span>
                   <span>-₹{discountAmount}</span>
                 </div>
               )}

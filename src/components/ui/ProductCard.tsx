@@ -98,6 +98,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         />
         {/* Subtle Gradient overlay on hover */}
         <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
+        
+        {/* Out of Stock Badge */}
+        {!product.inStock && (
+          <div className="absolute top-4 left-4 bg-black text-white px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest z-10">
+            Out of Stock
+          </div>
+        )}
       </div>
 
       {/* Product Content */}
@@ -141,7 +148,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             <span className="text-[10px] font-semibold text-gray-400 block">{product.weightOptions[0]} Pack</span>
           </div>
 
-          {quantity === 0 ? (
+          {!product.inStock ? (
+            <button
+              disabled
+              className="px-4 py-2.5 bg-red-50 text-red-500 text-xs font-bold rounded-xl cursor-not-allowed flex items-center gap-1.5 shadow-sm border border-red-100"
+            >
+              Out of Stock
+            </button>
+          ) : quantity === 0 ? (
             <button
               onClick={() => addToCart(product)}
               className="px-4 py-2.5 bg-[#111111] text-white text-xs font-bold rounded-xl hover:bg-[#C9A227] transition-all flex items-center gap-1.5 shadow-sm hover:shadow-md hover:scale-105 active:scale-95"

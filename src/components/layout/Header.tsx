@@ -15,7 +15,8 @@ export const Header: React.FC = () => {
     user,
     setIsAuthModalOpen,
     setAccountTab,
-    logout
+    logout,
+    coupons
   } = useShop();
 
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
@@ -38,6 +39,8 @@ export const Header: React.FC = () => {
   const [isMegaMenuOpen, setIsMegaMenuOpen] = useState(false);
 
   const cartItemCount = cart.reduce((acc, item) => acc + item.quantity, 0);
+
+  const activeCoupon = coupons?.find(c => c.status === 'Active');
 
   useEffect(() => {
     const handleScroll = () => {
@@ -69,13 +72,17 @@ export const Header: React.FC = () => {
       }`}
     >
       {/* Top Banner Announcement */}
-      <button 
-        onClick={() => setActivePage('shop')}
-        className="w-full bg-[#111111] hover:bg-black text-white text-[11px] py-2 px-4 text-center font-medium tracking-wide flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-[0.99] cursor-pointer"
-      >
-        <Sparkles className="w-3.5 h-3.5 text-[#C9A227] animate-pulse" />
-        <span>Complimentary Express Shipping on all orders above ₹799 | Code: <strong className="text-[#C9A227]">PURECROF</strong></span>
-      </button>
+      {activeCoupon && (
+        <button 
+          onClick={() => setActivePage('shop')}
+          className="w-full bg-[#111111] hover:bg-black text-white text-[11px] py-2 px-4 text-center font-medium tracking-wide flex items-center justify-center gap-2 transition-all hover:opacity-90 active:scale-[0.99] cursor-pointer"
+        >
+          <Sparkles className="w-3.5 h-3.5 text-[#C9A227] animate-pulse" />
+          <span>
+            {activeCoupon.discount} off {activeCoupon.minOrderValue ? `on all orders above ₹${activeCoupon.minOrderValue}` : 'on all orders'} | Code: <strong className="text-[#C9A227]">{activeCoupon.code}</strong>
+          </span>
+        </button>
+      )}
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between mt-1">
         {/* Logo */}

@@ -44,11 +44,11 @@
   background: #f8f8f8;
 }
 ::-webkit-scrollbar-thumb {
-  background: #d4d4d4;
+  background: #c9a227; /* Golden */
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #c9a227;
+  background: #b59223; /* Darker golden */
 }
 
 /* Glassmorphism */

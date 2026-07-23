@@ -76,6 +76,37 @@ interface ShopContextType {
   addOrder: (order: any) => void;
   cancelOrder: (orderId: string) => void;
   updateOrderStatus: (orderId: string, status: string) => void;
+
+  // Coupons
+  coupons: Coupon[];
+  addCoupon: (coupon: Coupon) => void;
+  deleteCoupon: (id: string) => void;
+  toggleCouponStatus: (id: string) => void;
+
+  // Reviews
+  reviews: Review[];
+  likedReviews: string[];
+  addReview: (review: Review) => void;
+  toggleReviewLike: (id: string | number) => void;
+}
+
+export interface Review {
+  id: string | number;
+  author: string;
+  product: string;
+  rating: number;
+  date: string;
+  text: string;
+  status: 'Approved' | 'Pending' | 'Rejected';
+  helpful: number;
+}
+
+export interface Coupon {
+  id: string;
+  code: string;
+  discount: string;
+  status: 'Active' | 'Inactive';
+  minOrderValue?: number;
 }
 
 const ShopContext = createContext<ShopContextType | undefined>(undefined);
@@ -136,6 +167,90 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   });
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
 
+  // Coupons
+  const [coupons, setCoupons] = useState<Coupon[]>(() => {
+    try {
+      const saved = localStorage.getItem('crof_coupons');
+      return saved ? JSON.parse(saved) : [
+        { id: '1', code: 'PURECROF', discount: '10%', status: 'Active', minOrderValue: 799 }
+      ];
+    } catch {
+      return [
+        { id: '1', code: 'PURECROF', discount: '10%', status: 'Active', minOrderValue: 799 }
+      ];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('crof_coupons', JSON.stringify(coupons));
+  }, [coupons]);
+
+  const addCoupon = (coupon: Coupon) => {
+    setCoupons((prev) => [...prev, coupon]);
+  };
+
+  const deleteCoupon = (id: string) => {
+    setCoupons((prev) => prev.filter((c) => c.id !== id));
+  };
+
+  const toggleCouponStatus = (id: string) => {
+    setCoupons((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, status: c.status === 'Active' ? 'Inactive' : 'Active' } : c))
+    );
+  };
+
+  // Reviews
+  const [reviews, setReviews] = useState<Review[]>(() => {
+    try {
+      const saved = localStorage.getItem('crof_reviews');
+      return saved ? JSON.parse(saved) : [
+        { id: 1, author: 'Chef Ranveer', product: 'Lakadong High Curcumin Turmeric', rating: 5, date: 'Oct 12, 2023', text: 'Vibrant golden hue and unmatched aroma! Absolute essential for my kitchen.', status: 'Approved', helpful: 12 },
+        { id: 2, author: 'Kavita S.', product: 'Lakadong High Curcumin Turmeric', rating: 5, date: 'Nov 04, 2023', text: 'Deep natural color, very pure quality.', status: 'Approved', helpful: 8 },
+        { id: 3, author: 'Rahul M.', product: 'Lakadong High Curcumin Turmeric', rating: 4, date: 'Dec 01, 2023', text: 'Good quality, but shipping took an extra day.', status: 'Approved', helpful: 3 },
+        { id: 4, author: 'Anita K.', product: 'Kashmiri Red Chilli', rating: 5, date: 'Jan 15, 2024', text: 'Perfect red color without being too spicy. Just what I needed.', status: 'Approved', helpful: 24 },
+        { id: 5, author: 'Priya D.', product: 'Kashmiri Red Chilli', rating: 3, date: 'Feb 10, 2024', text: 'The color is good but the packaging was slightly damaged on arrival.', status: 'Approved', helpful: 1 },
+        { id: 6, author: 'Suresh V.', product: 'Royal Garam Masala', rating: 5, date: 'Mar 22, 2024', text: 'Very aromatic whole spices. Highly recommended.', status: 'Approved', helpful: 45 }
+      ];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('crof_reviews', JSON.stringify(reviews));
+  }, [reviews]);
+
+  const addReview = (review: Review) => {
+    // For demo purposes, we automatically approve the review so the user can see it immediately
+    setReviews((prev) => [{ ...review, status: 'Approved' }, ...prev]);
+  };
+
+  const [likedReviews, setLikedReviews] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem('crof_liked_reviews');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('crof_liked_reviews', JSON.stringify(likedReviews));
+  }, [likedReviews]);
+
+  const toggleReviewLike = (id: string | number) => {
+    const idStr = id.toString();
+    const hasLiked = likedReviews.includes(idStr);
+    
+    setLikedReviews(prev => 
+      hasLiked ? prev.filter(rId => rId !== idStr) : [...prev, idStr]
+    );
+
+    setReviews((prev) =>
+      prev.map((r) => (r.id === id ? { ...r, helpful: Math.max(0, r.helpful + (hasLiked ? -1 : 1)) } : r))
+    );
+  };
+
   useEffect(() => {
     if (user) {
       localStorage.setItem('crof_user', JSON.stringify(user));
@@ -183,6 +298,9 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       if (e.key === 'crof_orders' && e.newValue) {
         setOrders(JSON.parse(e.newValue));
       }
+      if (e.key === 'crof_reviews' && e.newValue) {
+        setReviews(JSON.parse(e.newValue));
+      }
     };
     window.addEventListener('storage', handleStorage);
     return () => window.removeEventListener('storage', handleStorage);
@@ -206,7 +324,8 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUser(null);
     setCart([]);
     setWishlist([]);
-    setOrders([]);
+    // We do not clear orders or reviews here because they represent the global database in this mock app.
+    // In a real app, cart and wishlist would be fetched per-user from the DB.
     setCompareList([]);
     setActivePage('home');
     addToast('You have been logged out. All data cleared.', 'info');
@@ -393,7 +512,15 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         orders,
         addOrder,
         cancelOrder,
-        updateOrderStatus
+        updateOrderStatus,
+        coupons,
+        addCoupon,
+        deleteCoupon,
+        toggleCouponStatus,
+        reviews,
+        likedReviews,
+        addReview,
+        toggleReviewLike
       }}
     >
       {children}
