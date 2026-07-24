@@ -9,9 +9,16 @@ interface ProductCardProps {
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
-  const { cart, addToCart, updateCartQuantity, setQuickViewProduct, wishlist, toggleWishlist, compareList, toggleCompare, openProductPage } = useShop();
+  const { cart, addToCart, updateCartQuantity, setQuickViewProduct, wishlist, toggleWishlist, compareList, toggleCompare, openProductPage, reviews } = useShop();
 
-  const cartItem = cart.find(item => item.product.id === product.id && item.selectedWeight === product.weightOptions[0]);
+  const productReviews = reviews.filter(r => r.product === product.name && r.status === 'Approved');
+  const genuineReviewCount = productReviews.length;
+  const genuineRating = genuineReviewCount > 0 
+    ? (productReviews.reduce((sum, r) => sum + r.rating, 0) / genuineReviewCount).toFixed(1)
+    : '0.0';
+
+  const defaultVariant = product.variants?.[0] || { weight: '100g', currentStock: 0, price: 0, salePrice: 0 };
+  const cartItem = cart.find(item => item.product.id === product.id && item.selectedWeight === defaultVariant.weight);
   const quantity = cartItem ? cartItem.quantity : 0;
 
   const isWishlisted = wishlist.includes(product.id);
@@ -100,7 +107,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         <div className="absolute inset-0 bg-gradient-to-t from-black/20 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
         
         {/* Out of Stock Badge */}
-        {!product.inStock && (
+        {!defaultVariant.currentStock && (
           <div className="absolute top-4 left-4 bg-black text-white px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest z-10">
             Out of Stock
           </div>
@@ -112,7 +119,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         <div>
           <div className="flex items-center justify-between text-xs text-gray-400 mb-1 font-medium">
             <span className="text-[10px] uppercase font-bold text-[#C9A227] tracking-wider">
-              {product.category}
+              {product.name}
             </span>
             <span>{product.hindiName}</span>
           </div>
@@ -133,8 +140,8 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             <div className="flex text-amber-400">
               <Star className="w-3.5 h-3.5 fill-current" />
             </div>
-            <span className="text-xs font-bold text-gray-800">{product.rating}</span>
-            <span className="text-xs text-gray-400 font-medium">({product.reviewCount})</span>
+            <span className="text-xs font-bold text-gray-800">{genuineRating}</span>
+            <span className="text-xs text-gray-400 font-medium">({genuineReviewCount})</span>
           </div>
         </div>
 
@@ -142,13 +149,13 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
           <div>
             <div className="flex items-baseline gap-2">
-              <span className="text-lg font-bold text-gray-900">₹{product.price}</span>
-              <span className="text-xs text-gray-400 line-through">₹{product.originalPrice}</span>
+              <span className="text-lg font-bold text-gray-900">₹{defaultVariant.salePrice}</span>
+              <span className="text-xs text-gray-400 line-through">₹{defaultVariant.price}</span>
             </div>
-            <span className="text-[10px] font-semibold text-gray-400 block">{product.weightOptions[0]} Pack</span>
+            <span className="text-[10px] font-semibold text-gray-400 block">{defaultVariant.weight} Pack</span>
           </div>
 
-          {!product.inStock ? (
+          {!defaultVariant.currentStock ? (
             <button
               disabled
               className="px-4 py-2.5 bg-red-50 text-red-500 text-xs font-bold rounded-xl cursor-not-allowed flex items-center gap-1.5 shadow-sm border border-red-100"
@@ -170,14 +177,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
               className="flex items-center gap-3 bg-[#111111] px-2 py-1.5 rounded-xl border border-[#111111] shadow-sm"
             >
               <button 
-                onClick={() => updateCartQuantity(product.id, product.weightOptions[0], -1)}
+                onClick={() => updateCartQuantity(product.id, defaultVariant.weight, -1)}
                 className="w-7 h-7 flex items-center justify-center bg-white/10 text-white rounded-lg hover:bg-white/20 transition-colors font-bold"
               >
                 -
               </button>
               <span className="text-xs font-bold text-white w-4 text-center">{quantity}</span>
               <button 
-                onClick={() => updateCartQuantity(product.id, product.weightOptions[0], 1)}
+                onClick={() => updateCartQuantity(product.id, defaultVariant.weight, 1)}
                 className="w-7 h-7 flex items-center justify-center bg-[#C9A227] text-[#111111] rounded-lg hover:bg-amber-400 transition-colors font-bold"
               >
                 +

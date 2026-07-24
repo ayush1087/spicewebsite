@@ -19,9 +19,9 @@ export const ShopPage: React.FC = () => {
 
   // Filtering logic
   let filtered = products.filter((p) => {
-    const matchCat = selectedCategory === 'All Products' || p.category === selectedCategory;
-    const matchPrice = p.price <= maxPrice;
-    const matchWeight = selectedWeight === 'All' || p.weightOptions.includes(selectedWeight);
+    const matchCat = selectedCategory === 'All Products' || p.category.includes(selectedCategory);
+    const matchPrice = p.variants?.[0] ? p.variants[0].salePrice <= maxPrice : false;
+    const matchWeight = selectedWeight === 'All' || p.variants?.some((v: any) => v.weight === selectedWeight);
     const matchSearch =
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.hindiName.toLowerCase().includes(searchQuery.toLowerCase());
@@ -30,9 +30,9 @@ export const ShopPage: React.FC = () => {
 
   // Sorting
   if (sortBy === 'price-low') {
-    filtered.sort((a, b) => a.price - b.price);
+    filtered.sort((a, b) => (a.variants?.[0]?.salePrice || 0) - (b.variants?.[0]?.salePrice || 0));
   } else if (sortBy === 'price-high') {
-    filtered.sort((a, b) => b.price - a.price);
+    filtered.sort((a, b) => (b.variants?.[0]?.salePrice || 0) - (a.variants?.[0]?.salePrice || 0));
   } else if (sortBy === 'rating') {
     filtered.sort((a, b) => b.rating - a.rating);
   }
@@ -212,7 +212,11 @@ export const ShopPage: React.FC = () => {
                       className="w-32 h-32 object-cover rounded-2xl border border-gray-100 shrink-0"
                     />
                     <div className="flex-1 space-y-1">
-                      <span className="text-[10px] uppercase font-bold text-[#C9A227]">{p.category}</span>
+                      <div className="flex items-center gap-2 mt-1">
+                        <span className="text-[10px] uppercase font-bold text-[#C9A227] tracking-wider">
+                          {p.name}
+                        </span>
+                      </div>
                       <h3 className="text-lg font-bold text-gray-900">{p.name}</h3>
                       <p className="text-xs text-gray-500 font-light">{p.description}</p>
                       <div className="flex items-center gap-4 text-xs pt-2">

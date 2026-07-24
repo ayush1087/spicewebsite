@@ -16,7 +16,21 @@ interface ToastMessage {
   type?: 'success' | 'info' | 'warning';
 }
 
-interface ShopContextType {
+export interface StockHistoryRecord {
+  id: string;
+  date: string;
+  adminName: string;
+  productId: string;
+  productName: string;
+  variantWeight: string;
+  oldStock: number;
+  newStock: number;
+  reason: string;
+}
+
+export interface ShopContextType {
+  stockHistory: StockHistoryRecord[];
+  updateVariantStock: (productId: string, weight: string, delta: number, type: 'increase' | 'decrease' | 'set', reason: string, adminName?: string) => void;
   // Products
   products: Product[];
   deleteProduct: (productId: string) => void;
@@ -120,7 +134,22 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [products, setProducts] = useState<Product[]>(() => {
     try {
       const saved = localStorage.getItem('crof_products');
-      return saved ? JSON.parse(saved) : PRODUCTS;
+      if (saved) {
+        let parsed = JSON.parse(saved);
+        // Safe migration for older string-based categories in localStorage
+        parsed = parsed.map((p: any) => {
+          if (!p.variants || !Array.isArray(p.variants)) {
+            throw new Error('Old product structure detected');
+          }
+          return {
+            ...p,
+            category: Array.isArray(p.category) ? p.category : [p.category],
+            gallery: Array.isArray(p.gallery) ? p.gallery : (p.image ? [p.image] : [])
+          };
+        });
+        return parsed;
+      }
+      return PRODUCTS;
     } catch {
       return PRODUCTS;
     }
@@ -139,6 +168,58 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   // Wishlist state
+  const [stockHistory, setStockHistory] = useState<StockHistoryRecord[]>(() => {
+    try {
+      const saved = localStorage.getItem('crof_stock_history');
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    localStorage.setItem('crof_stock_history', JSON.stringify(stockHistory));
+  }, [stockHistory]);
+
+  const updateVariantStock = (productId: string, weight: string, delta: number, type: 'increase' | 'decrease' | 'set', reason: string, adminName: string = 'Admin') => {
+    setProducts(prevProducts => prevProducts.map(p => {
+      if (p.id === productId) {
+        return {
+          ...p,
+          variants: p.variants.map((v: any) => {
+            if (v.weight === weight) {
+              const oldStock = v.currentStock;
+              let newStock = v.currentStock;
+              if (type === 'set') newStock = delta;
+              else if (type === 'increase') newStock = oldStock + delta;
+              else if (type === 'decrease') newStock = Math.max(0, oldStock - delta);
+              
+              let status = 'In Stock';
+              if (newStock === 0) status = 'Out Of Stock';
+              else if (newStock <= 20) status = 'Low Stock';
+
+              setStockHistory((prev: any) => [{
+                id: Math.random().toString(36).substr(2, 9),
+                date: new Date().toISOString(),
+                adminName,
+                productId,
+                productName: p.name,
+                variantWeight: weight,
+                oldStock,
+                newStock,
+                reason
+              }, ...prev]);
+
+              return { ...v, currentStock: newStock, status };
+            }
+            return v;
+          })
+        };
+      }
+      return p;
+    }));
+  };
+
   const [wishlist, setWishlist] = useState<string[]>(() => {
     try {
       const saved = localStorage.getItem('crof_wishlist');
@@ -286,7 +367,11 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [wishlist]);
 
   useEffect(() => {
-    localStorage.setItem('crof_products', JSON.stringify(products));
+    try {
+      localStorage.setItem('crof_products', JSON.stringify(products));
+    } catch (error) {
+      console.warn('Failed to save products to localStorage. Quota exceeded.');
+    }
   }, [products]);
 
   // Sync state across tabs
@@ -360,7 +445,7 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const addToCart = (product: Product, weight?: string, qty: number = 1) => {
-    const selectedWeight = weight || product.weightOptions[0];
+    const selectedWeight = weight || product.variants?.[0]?.weight || '100g';
     setCart((prev) => {
       const existingIndex = prev.findIndex(
         (item) => item.product.id === product.id && item.selectedWeight === selectedWeight
@@ -391,24 +476,37 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const updateCartQuantity = (productId: string, weight: string, delta: number) => {
-    setCart((prev) =>
-      prev
-        .map((item) => {
-          if (item.product.id === productId && item.selectedWeight === weight) {
-            const newQty = item.quantity + delta;
-            return newQty > 0 ? { ...item, quantity: newQty } : null;
+    setCart((prev) => {
+      let limitHit = false;
+      const updated = prev.map((item) => {
+        if (item.product.id === productId && item.selectedWeight === weight) {
+          const variant = products.find(p => p.id === productId)?.variants.find(v => v.weight === weight);
+          const newQty = item.quantity + delta;
+          if (variant && newQty > variant.currentStock) {
+            limitHit = true;
+            return item;
           }
-          return item;
-        })
-        .filter(Boolean) as CartItem[]
-    );
+          return newQty > 0 ? { ...item, quantity: newQty } : null;
+        }
+        return item;
+      }).filter(Boolean) as CartItem[];
+      
+      if (limitHit) {
+        addToast(`Maximum available stock reached`, 'warning');
+      }
+      return updated;
+    });
   };
 
   const clearCart = () => {
     setCart([]);
   };
 
-  const cartSubtotal = cart.reduce((acc, item) => acc + item.product.price * item.quantity, 0);
+  const cartSubtotal = cart.reduce((acc, item) => {
+    const variant = item.product.variants.find((v: any) => v.weight === item.selectedWeight);
+    return acc + ((variant?.salePrice || 0) * item.quantity);
+  }, 0);
+  
   const freeShippingThreshold = 799;
 
   const toggleWishlist = (productId: string) => {
@@ -443,11 +541,21 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
   const addOrder = (order: any) => {
     setOrders((prev) => [order, ...prev]);
+    // Deduct stock
+    order.items?.forEach((item: any) => {
+      updateVariantStock(item.product.id, item.selectedWeight, item.quantity, 'decrease', 'Sold (Order placed)', 'System');
+    });
     clearCart();
     addToast('Order placed successfully! Track status in My Account.', 'success');
   };
 
   const cancelOrder = (orderId: string) => {
+    const orderToCancel = orders.find(o => o.id === orderId);
+    if (orderToCancel && orderToCancel.status !== 'Cancelled') {
+      orderToCancel.items?.forEach((item: any) => {
+        updateVariantStock(item.product.id, item.selectedWeight, item.quantity, 'increase', 'Restocked (Order Cancelled)', 'System');
+      });
+    }
     setOrders((prev) => 
       prev.map(order => 
         order.id === orderId ? { ...order, status: 'Cancelled' } : order
@@ -520,7 +628,9 @@ export const ShopProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         reviews,
         likedReviews,
         addReview,
-        toggleReviewLike
+        toggleReviewLike,
+        stockHistory,
+        updateVariantStock
       }}
     >
       {children}

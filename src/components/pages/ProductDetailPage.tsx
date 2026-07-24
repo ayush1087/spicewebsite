@@ -10,7 +10,8 @@ export const ProductDetailPage: React.FC = () => {
   const product = products.find((p) => p.id === selectedProductId) || products[0];
 
   const [activeImg, setActiveImg] = useState<string>(product.image);
-  const [selectedWeight, setSelectedWeight] = useState<string>(product.weightOptions[0]);
+  const [selectedWeight, setSelectedWeight] = useState<string>(product.variants?.[0]?.weight || '100g');
+  const selectedVariant = product.variants?.find((v: any) => v.weight === selectedWeight) || product.variants?.[0];
   const [quantity, setQuantity] = useState<number>(1);
   const [activeTab, setActiveTab] = useState<'description' | 'ingredients' | 'nutrition' | 'storage' | 'reviews'>('description');
   const [is360Active, setIs360Active] = useState<boolean>(false);
@@ -18,6 +19,8 @@ export const ProductDetailPage: React.FC = () => {
   const [reviewText, setReviewText] = useState('');
   const [reviewRating, setReviewRating] = useState(5);
   const [showAllReviews, setShowAllReviews] = useState(false);
+  const [isZoomed, setIsZoomed] = useState<boolean>(false);
+  const [panPosition, setPanPosition] = useState({ x: 0, y: 0 });
 
 
   const isWishlisted = wishlist.includes(product.id);
@@ -33,7 +36,7 @@ export const ProductDetailPage: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
           {/* Left Column: Gallery & 360 View */}
           <div className="lg:col-span-6 space-y-4">
-            <div className="relative bg-gray-50 rounded-3xl p-8 border border-gray-200/60 overflow-hidden flex items-center justify-center min-h-[420px]">
+            <div className="relative bg-gray-50 rounded-3xl p-8 border border-gray-200/60 overflow-hidden flex items-center justify-center min-h-[380px]">
               {/* 360 view simulation toggle */}
               <button
                 onClick={() => setIs360Active(!is360Active)}
@@ -62,30 +65,69 @@ export const ProductDetailPage: React.FC = () => {
                   <p className="text-xs text-gray-500 font-medium">‹ Drag left/right to rotate product ›</p>
                 </div>
               ) : (
-                <img
-                  src={activeImg}
-                  alt={product.name}
-                  className="w-full h-96 object-cover rounded-2xl shadow-lg hover:scale-105 transition-transform duration-500"
-                />
+                <div 
+                  className={`relative group overflow-hidden w-full h-80 sm:h-96 flex items-center justify-center rounded-2xl transition-all ${isZoomed ? 'cursor-grab active:cursor-grabbing' : 'cursor-zoom-in'}`}
+                  onClick={() => {
+                    if (!isZoomed) {
+                      setIsZoomed(true);
+                      setPanPosition({ x: 0, y: 0 });
+                    } else {
+                      setIsZoomed(false);
+                    }
+                  }}
+                  onMouseMove={(e) => {
+                    if (isZoomed && e.buttons === 1) {
+                      setPanPosition(prev => ({
+                        x: prev.x + e.movementX,
+                        y: prev.y + e.movementY
+                      }));
+                    }
+                  }}
+                  onMouseLeave={() => {
+                    if (isZoomed) {
+                      setIsZoomed(false);
+                    }
+                  }}
+                >
+                  <motion.img
+                    src={activeImg}
+                    alt={product.name}
+                    animate={{
+                      scale: isZoomed ? 2.5 : 1,
+                      x: isZoomed ? panPosition.x : 0,
+                      y: isZoomed ? panPosition.y : 0
+                    }}
+                    transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                    draggable={false}
+                    className="w-full h-full object-cover rounded-2xl shadow-lg"
+                  />
+                  {!isZoomed && (
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 rounded-2xl transition-colors flex items-center justify-center pointer-events-none">
+                      <div className="bg-white/90 backdrop-blur-sm text-gray-900 px-4 py-2 rounded-full text-xs font-bold opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-2 transform translate-y-4 group-hover:translate-y-0 shadow-lg border border-gray-100">
+                        <Plus className="w-4 h-4" /> Click to Zoom
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 
             {/* Thumbnail switcher */}
-            <div className="flex gap-4 overflow-x-auto pb-2">
-              {product.gallery.map((imgUrl, i) => (
+            <div className="flex gap-4 overflow-x-auto pb-4 pt-2 px-2">
+              {(product.gallery || [product.image]).map((imgUrl, i) => (
                 <button
                   key={i}
                   onClick={() => {
                     setActiveImg(imgUrl);
                     setIs360Active(false);
                   }}
-                  className={`w-20 h-20 rounded-2xl overflow-hidden border-2 transition-all ${
+                  className={`shrink-0 w-36 h-24 rounded-2xl overflow-hidden border-2 transition-all flex items-center justify-center bg-white p-2 ${
                     activeImg === imgUrl && !is360Active
                       ? 'border-[#C9A227] scale-105 shadow-md'
-                      : 'border-gray-200 hover:border-gray-300'
+                      : 'border-transparent hover:border-gray-200 shadow-sm'
                   }`}
                 >
-                  <img src={imgUrl} alt="" className="w-full h-full object-cover" />
+                  <img src={imgUrl} alt="" className="w-full h-full object-cover rounded-xl" />
                 </button>
               ))}
             </div>
@@ -99,7 +141,7 @@ export const ProductDetailPage: React.FC = () => {
                   {product.category}
                 </span>
                 <span className="text-xs text-gray-400 font-medium">{product.hindiName}</span>
-                {product.inStock ? (
+                {selectedVariant?.currentStock > 0 ? (
                   <span className="text-xs text-emerald-600 font-semibold ml-auto flex items-center gap-1">
                     <Check className="w-3.5 h-3.5" /> In Stock & Ready to Ship
                   </span>
@@ -128,10 +170,10 @@ export const ProductDetailPage: React.FC = () => {
 
             {/* Price & Discount */}
             <div className="flex items-baseline gap-4 p-4 bg-gray-50 rounded-2xl border border-gray-200/60">
-              <span className="text-3xl font-bold text-gray-900">₹{product.price}</span>
-              <span className="text-base text-gray-400 line-through">₹{product.originalPrice}</span>
+              <span className="text-3xl font-bold text-gray-900">₹{selectedVariant?.salePrice}</span>
+              <span className="text-base text-gray-400 line-through">₹{selectedVariant?.price}</span>
               <span className="text-xs font-bold text-[#C9A227] bg-amber-100 px-2.5 py-1 rounded-full">
-                Save {product.discount}%
+                Save {Math.round(((selectedVariant?.price - selectedVariant?.salePrice) / selectedVariant?.price) * 100)}%
               </span>
             </div>
 
@@ -141,17 +183,23 @@ export const ProductDetailPage: React.FC = () => {
                 Select Package Weight:
               </label>
               <div className="flex flex-wrap gap-3">
-                {product.weightOptions.map((wt) => (
+                {product.variants?.map((variant: any) => (
                   <button
-                    key={wt}
-                    onClick={() => setSelectedWeight(wt)}
+                    key={variant.weight}
+                    disabled={variant.currentStock === 0}
+                    onClick={() => {
+                      setSelectedWeight(variant.weight);
+                      setQuantity(1); // Reset qty on variant change
+                    }}
                     className={`px-5 py-2.5 text-xs font-bold rounded-xl border transition-all ${
-                      selectedWeight === wt
+                      selectedWeight === variant.weight
                         ? 'bg-[#111111] text-white border-[#111111] shadow-md'
+                        : variant.currentStock === 0
+                        ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-60'
                         : 'bg-white text-gray-800 border-gray-200 hover:border-gray-300'
                     }`}
                   >
-                    {wt}
+                    {variant.weight} {variant.currentStock === 0 && '(Sold Out)'}
                   </button>
                 ))}
               </div>
@@ -175,7 +223,7 @@ export const ProductDetailPage: React.FC = () => {
                 </button>
               </div>
 
-              {product.inStock ? (
+              {selectedVariant?.currentStock > 0 ? (
                 <button
                   onClick={() => addToCart(product, selectedWeight, quantity)}
                   className="flex-1 py-4 bg-[#111111] text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-[#C9A227] transition-all flex items-center justify-center gap-2 shadow-lg"

@@ -13,8 +13,8 @@ export const SearchModal: React.FC = () => {
     const matchesQuery =
       p.name.toLowerCase().includes(query.toLowerCase()) ||
       p.hindiName.toLowerCase().includes(query.toLowerCase()) ||
-      p.category.toLowerCase().includes(query.toLowerCase());
-    const matchesCat = selectedCat === 'All Spices' || p.category === selectedCat;
+      p.category.some(cat => cat.toLowerCase().includes(query.toLowerCase()));
+    const matchesCat = selectedCat === 'All Spices' || p.category.includes(selectedCat);
     return matchesQuery && matchesCat;
   });
 
@@ -102,18 +102,17 @@ export const SearchModal: React.FC = () => {
                         className="w-16 h-16 object-cover rounded-xl border border-gray-200 group-hover:scale-105 transition-transform"
                       />
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] uppercase font-bold text-[#C9A227] tracking-wider">
-                            {p.category}
+                        <div className="flex justify-between items-start mb-1">
+                          <span className="text-[10px] uppercase font-bold text-[#C9A227]">
+                            {p.name}
                           </span>
-                          <span className="text-gray-300">•</span>
-                          <span className="text-[11px] text-gray-400 font-medium">{p.hindiName}</span>
+                          <span className="text-xs font-bold">₹{p.price}</span>
                         </div>
+                        <span className="text-[11px] text-gray-400 font-medium">{p.hindiName}</span>
                         <h4 className="font-semibold text-sm text-gray-900 truncate group-hover:text-[#C9A227] transition-colors">
                           {p.name}
                         </h4>
                         <div className="flex items-center justify-between mt-1">
-                          <span className="text-xs font-bold text-gray-900">₹{p.price}</span>
                           <span className="flex items-center gap-1 text-[11px] font-semibold text-amber-600">
                             <Star className="w-3 h-3 fill-amber-400 text-amber-400" />
                             {p.rating}

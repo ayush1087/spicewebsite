@@ -8,6 +8,7 @@ import {
   Plus, Edit, Trash2, AlertTriangle, ArrowUpRight, ArrowRight, ArrowLeft, Download, X, Layers, Briefcase, CreditCard,
   Megaphone, FileText, Activity
 } from 'lucide-react';
+import { InventoryTab } from './InventoryTab';
 import { motion, AnimatePresence } from 'framer-motion';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
 
@@ -29,7 +30,7 @@ const customerGrowthData = [
 ];
 
 export const AdminPortal: React.FC = () => {
-  const { addToast, orders, products, deleteProduct, addProduct, updateProduct, resetCatalog, updateOrderStatus, coupons, addCoupon, deleteCoupon, toggleCouponStatus, reviews } = useShop();
+  const { addToast, orders, products, deleteProduct, addProduct, updateProduct, resetCatalog, updateOrderStatus, coupons, addCoupon, deleteCoupon, toggleCouponStatus, reviews, updateVariantStock, stockHistory } = useShop();
 
   const totalRevenue = orders.reduce((acc, o) => (o.status !== 'Cancelled' ? acc + o.total : acc), 0);
   const totalOrders = orders.length;
@@ -88,16 +89,15 @@ export const AdminPortal: React.FC = () => {
   // Form Fields
   const [name, setName] = useState('');
   const [hindiName, setHindiName] = useState('');
-  const [category, setCategory] = useState('All Products');
+  const [category, setCategory] = useState<string[]>(['All Products']);
   const [price, setPrice] = useState<number>(299);
   const [originalPrice, setOriginalPrice] = useState<number>(350);
   const [tagline, setTagline] = useState('');
   const [description, setDescription] = useState('');
   const [image, setImage] = useState('');
-  const [sku, setSku] = useState('');
+  const [gallery, setGallery] = useState<string[]>([]);
   const [origin, setOrigin] = useState('');
   const [pungency, setPungency] = useState<'Mild' | 'Medium' | 'Hot' | 'Extra Hot'>('Mild');
-  const [inStock, setInStock] = useState(true);
   const [customImageLabels, setCustomImageLabels] = useState<Record<string, string>>({});
 
   const handleLabelChange = (url: string, newLabel: string) => {
@@ -140,16 +140,15 @@ export const AdminPortal: React.FC = () => {
     setSelectedProduct(null);
     setName('');
     setHindiName('');
-    setCategory('All Products');
+    setCategory(['All Products']);
     setPrice(299);
     setOriginalPrice(350);
     setTagline('Pure handpicked aroma.');
     setDescription('Farmed organically and cold milled under 30°C to preserve top notes.');
     setImage('');
-    setSku('CROF-NEW-100');
+    setGallery([]);
     setOrigin('Pristine Farms, India');
     setPungency('Mild');
-    setInStock(true);
     setIsModalOpen(true);
   };
 
@@ -163,10 +162,9 @@ export const AdminPortal: React.FC = () => {
     setTagline(p.tagline);
     setDescription(p.description);
     setImage(p.image);
-    setSku(p.sku);
+    setGallery(Array.isArray(p.gallery) ? p.gallery : (p.image ? [p.image] : []));
     setOrigin(p.origin);
     setPungency(p.pungency);
-    setInStock(p.inStock);
     setIsModalOpen(true);
   };
 
@@ -184,16 +182,16 @@ export const AdminPortal: React.FC = () => {
       tagline,
       description,
       image,
-      gallery: [image],
-      weightOptions: selectedProduct ? selectedProduct.weightOptions : ['100g', '250g', '500g'],
+      gallery: gallery.length > 0 ? gallery : [image],
+      variants: selectedProduct ? selectedProduct.variants : [
+        { weight: '100g', sku: 'NEW-100G', price: Number(originalPrice), salePrice: Number(price), currentStock: 100, reservedStock: 0, status: 'In Stock' }
+      ],
       discount: originalPrice > price ? Math.round(((originalPrice - price) / originalPrice) * 100) : 0,
       origin,
       pungency,
       ingredients: selectedProduct ? selectedProduct.ingredients : [`100% Pure ${name}`],
       nutrition: selectedProduct ? selectedProduct.nutrition : { calories: '300 kcal', protein: '10g', carbs: '60g', fat: '8g', fiber: '20g' },
-      storage: selectedProduct ? selectedProduct.storage : 'Store in a cool, dry place.',
-      inStock,
-      sku
+      storage: selectedProduct ? selectedProduct.storage : 'Store in a cool, dry place.'
     };
 
     if (selectedProduct) {
@@ -226,8 +224,8 @@ export const AdminPortal: React.FC = () => {
   // CSV Export
   const exportCSV = () => {
     const csvContent =
-      'data:text/csv;charset=utf-8,SKU,Name,Category,Price,Rating,InStock\n' +
-      products.map((p) => `${p.sku},"${p.name}",${p.category},${p.price},${p.rating},${p.inStock}`).join('\n');
+      'data:text/csv;charset=utf-8,Name,Category,Rating\n' +
+      products.map((p) => `"${p.name}","${p.category.join(', ')}",${p.rating}`).join('\n');
     const encodedUri = encodeURI(csvContent);
     const link = document.createElement('a');
     link.setAttribute('href', encodedUri);
@@ -590,7 +588,7 @@ export const AdminPortal: React.FC = () => {
                     <img src={p.image} alt="" className="w-12 h-12 object-cover rounded-xl border" />
                     <div>
                       <h4 className="font-bold text-gray-900">{p.name}</h4>
-                      <p className="text-gray-400">{p.category} • ₹{p.price} <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded ml-1 font-bold">{p.inStock ? 'In Stock' : 'Out of Stock'}</span></p>
+                      <p className="text-gray-400">{p.category.join(', ')} • ₹{p.variants?.[0]?.salePrice} <span className="text-[10px] bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded ml-1 font-bold">{p.variants?.[0]?.currentStock > 0 ? 'In Stock' : 'Out of Stock'}</span></p>
                     </div>
                   </div>
                   <div className="flex items-center gap-1.5">
@@ -838,6 +836,11 @@ export const AdminPortal: React.FC = () => {
           </div>
         )}
 
+        {/* 12.5 INVENTORY */}
+        {activeTab === 'inventory' && (
+          <InventoryTab products={products} updateVariantStock={updateVariantStock} stockHistory={stockHistory} updateProduct={updateProduct} />
+        )}
+
         {/* 13. SETTINGS */}
         {activeTab === 'settings' && (
           <div className="p-6 bg-white rounded-3xl border border-gray-200 space-y-4 text-xs">
@@ -894,7 +897,6 @@ export const AdminPortal: React.FC = () => {
                         className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#C9A227]"
                       />
                     </div>
-
                     <div>
                       <label className="font-bold text-gray-900 block mb-1.5">Hindi / Regional Name</label>
                       <input
@@ -910,29 +912,29 @@ export const AdminPortal: React.FC = () => {
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="font-bold text-gray-900 block mb-1.5">Category</label>
-                      <select
-                        value={category}
-                        onChange={(e) => setCategory(e.target.value)}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#C9A227]"
-                      >
+                      <label className="font-bold text-gray-900 block mb-1.5">Categories</label>
+                      <div className="grid grid-cols-2 gap-2 border border-gray-200 p-3 rounded-xl bg-gray-50 max-h-40 overflow-y-auto">
                         {categories.map((cat, i) => (
-                          <option key={i} value={cat}>{cat}</option>
+                          <label key={i} className="flex items-center gap-2 text-sm text-gray-700">
+                            <input
+                              type="checkbox"
+                              checked={category.includes(cat)}
+                              onChange={(e) => {
+                                if (e.target.checked) {
+                                  setCategory([...category, cat]);
+                                } else {
+                                  setCategory(category.filter(c => c !== cat));
+                                }
+                              }}
+                              className="rounded border-gray-300 text-[#C9A227] focus:ring-[#C9A227]"
+                            />
+                            {cat}
+                          </label>
                         ))}
-                      </select>
+                      </div>
                     </div>
 
-                    <div>
-                      <label className="font-bold text-gray-900 block mb-1.5">Product SKU</label>
-                      <input
-                        type="text"
-                        required
-                        value={sku}
-                        onChange={(e) => setSku(e.target.value)}
-                        placeholder="e.g. CROF-LKT-100"
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#C9A227]"
-                      />
-                    </div>
+
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -960,17 +962,7 @@ export const AdminPortal: React.FC = () => {
                       />
                     </div>
 
-                    <div>
-                      <label className="font-bold text-gray-900 block mb-1.5">Stock Status</label>
-                      <select
-                        value={inStock ? 'true' : 'false'}
-                        onChange={(e) => setInStock(e.target.value === 'true')}
-                        className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#C9A227]"
-                      >
-                        <option value="true">In Stock & Ready</option>
-                        <option value="false">Out of Stock</option>
-                      </select>
-                    </div>
+
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1086,6 +1078,63 @@ export const AdminPortal: React.FC = () => {
                           onChange={(e) => setImage(e.target.value)}
                           placeholder={image.startsWith('data:image') ? "Custom image uploaded from device" : "Or paste Image URL"}
                           className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#C9A227] text-xs"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="font-bold text-gray-900 block mb-1.5">Bottom Images (Gallery)</label>
+                    <div className="flex flex-wrap gap-2 mb-2">
+                      {gallery.map((imgUrl, idx) => (
+                        <div key={`gal-${idx}`} className="relative p-1.5 border border-gray-200 rounded-xl bg-gray-50 flex flex-col items-center group shrink-0">
+                          <img src={imgUrl} alt="" className="w-10 h-10 object-cover rounded-lg border" />
+                          <button 
+                            type="button" 
+                            onClick={() => setGallery(prev => (Array.isArray(prev) ? prev : []).filter((_, i) => i !== idx))}
+                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-gray-400 mb-1">Upload an image from your device or paste URL:</p>
+                      <div className="flex gap-2">
+                        <label className="cursor-pointer flex-shrink-0 px-4 py-2 bg-[#111111] text-white text-xs font-bold rounded-xl hover:bg-black transition-colors flex items-center justify-center">
+                          Upload File
+                          <input 
+                            type="file" 
+                            accept="image/*" 
+                            className="hidden" 
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) {
+                                const reader = new FileReader();
+                                reader.onloadend = () => {
+                                  setGallery(prev => Array.isArray(prev) ? [...prev, reader.result as string] : [reader.result as string]);
+                                };
+                                reader.readAsDataURL(file);
+                              }
+                              e.target.value = '';
+                            }} 
+                          />
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="Paste Image URL and press Enter to add"
+                          className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:border-[#C9A227] text-xs"
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              const val = e.currentTarget.value;
+                              if (val) {
+                                setGallery(prev => Array.isArray(prev) ? [...prev, val] : [val]);
+                                e.currentTarget.value = '';
+                              }
+                            }
+                          }}
                         />
                       </div>
                     </div>

@@ -9,7 +9,9 @@ export const QuickViewModal: React.FC = () => {
 
   if (!quickViewProduct) return null;
 
-  const activeWeight = selectedWeight || quickViewProduct.weightOptions[0];
+  const defaultVariant = quickViewProduct.variants?.[0] || { weight: '100g', price: 0, salePrice: 0, currentStock: 0 };
+  const activeWeight = selectedWeight || defaultVariant.weight;
+  const selectedVariant = quickViewProduct.variants?.find((v: any) => v.weight === activeWeight) || defaultVariant;
   const isWishlisted = wishlist.includes(quickViewProduct.id);
 
   return (
@@ -56,11 +58,11 @@ export const QuickViewModal: React.FC = () => {
           {/* Right: Product Details */}
           <div className="p-8 flex flex-col justify-between space-y-6">
             <div>
-              <div className="flex items-center gap-2">
-                <span className="text-[10px] uppercase tracking-widest font-bold text-[#C9A227] bg-amber-50 px-2.5 py-1 rounded-md">
-                  {quickViewProduct.category}
+              <div className="flex items-center justify-between text-xs font-medium text-gray-500">
+                <span className="uppercase font-bold tracking-widest text-[#C9A227]">
+                  {quickViewProduct.name}
                 </span>
-                <span className="text-xs text-gray-400 font-medium">{quickViewProduct.hindiName}</span>
+                <span>{quickViewProduct.hindiName}</span>
               </div>
 
               <h2 className="text-xl font-bold text-gray-900 mt-2 tracking-tight">{quickViewProduct.name}</h2>
@@ -83,8 +85,8 @@ export const QuickViewModal: React.FC = () => {
 
               {/* Pricing */}
               <div className="flex items-baseline gap-3 mt-4">
-                <span className="text-2xl font-bold text-gray-900">₹{quickViewProduct.price}</span>
-                <span className="text-sm text-gray-400 line-through">₹{quickViewProduct.originalPrice}</span>
+                <span className="text-2xl font-bold text-gray-900">₹{selectedVariant.salePrice}</span>
+                <span className="text-sm text-gray-400 line-through">₹{selectedVariant.price}</span>
                 <span className="text-xs font-semibold text-emerald-600">Tax Included</span>
               </div>
 
@@ -94,17 +96,20 @@ export const QuickViewModal: React.FC = () => {
                   Select Pack Weight:
                 </label>
                 <div className="flex flex-wrap gap-2">
-                  {quickViewProduct.weightOptions.map((wt) => (
+                  {quickViewProduct.variants?.map((variant: any) => (
                     <button
-                      key={wt}
-                      onClick={() => setSelectedWeight(wt)}
+                      key={variant.weight}
+                      disabled={variant.currentStock === 0}
+                      onClick={() => setSelectedWeight(variant.weight)}
                       className={`px-4 py-2 text-xs font-semibold rounded-xl border transition-all ${
-                        activeWeight === wt
+                        activeWeight === variant.weight
                           ? 'border-[#111111] bg-[#111111] text-white shadow-sm'
+                          : variant.currentStock === 0
+                          ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed opacity-60'
                           : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
                       }`}
                     >
-                      {wt}
+                      {variant.weight} {variant.currentStock === 0 && '(Sold Out)'}
                     </button>
                   ))}
                 </div>
@@ -115,13 +120,20 @@ export const QuickViewModal: React.FC = () => {
             <div className="space-y-3 pt-4 border-t border-gray-100">
               <div className="flex gap-3">
                 <button
+                  disabled={selectedVariant.currentStock === 0}
                   onClick={() => {
-                    addToCart(quickViewProduct, activeWeight);
-                    setQuickViewProduct(null);
+                    if (selectedVariant.currentStock > 0) {
+                      addToCart(quickViewProduct, activeWeight);
+                      setQuickViewProduct(null);
+                    }
                   }}
-                  className="flex-1 py-3.5 bg-[#111111] text-white text-xs font-bold uppercase tracking-wider rounded-xl hover:bg-[#C9A227] transition-colors flex items-center justify-center gap-2 shadow-md"
+                  className={`flex-1 py-3.5 text-white text-xs font-bold uppercase tracking-wider rounded-xl transition-colors flex items-center justify-center gap-2 shadow-md ${
+                    selectedVariant.currentStock > 0
+                      ? 'bg-[#111111] hover:bg-[#C9A227]'
+                      : 'bg-gray-400 cursor-not-allowed'
+                  }`}
                 >
-                  <ShoppingBag className="w-4 h-4" /> Add To Cart
+                  <ShoppingBag className="w-4 h-4" /> {selectedVariant.currentStock > 0 ? 'Add To Cart' : 'Out of Stock'}
                 </button>
                 <button
                   onClick={() => toggleWishlist(quickViewProduct.id)}
